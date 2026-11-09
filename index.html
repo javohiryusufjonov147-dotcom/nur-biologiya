@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1b21">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Nur biologiya</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#0d1b21; --surface:#15272e; --surface2:#1c333b; --line:#27434d;
+  --text:#eef3ef; --muted:#93aab0; --accent:#5cc2a4; --accent-ink:#06231b;
+  --gold:#f0bd52; --danger:#ef7b6c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:17px;line-height:1.45}
+body{min-height:100vh;padding-top:env(safe-area-inset-top,0px)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+h1{font-size:28px}h2{font-size:22px}h3{font-size:18px}
+p{margin:0}
+.muted{color:var(--muted)}
+.wrap{max-width:560px;margin:0 auto;padding:20px 18px 120px}
+.hidden{display:none!important}
+
+/* tugmalar */
+.btn{display:block;width:100%;min-height:54px;padding:14px 18px;border:0;border-radius:14px;
+  background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:17px;cursor:pointer}
+.btn:active{transform:scale(.985)}
+.btn[disabled]{opacity:.55}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn.small{min-height:42px;padding:8px 14px;font-size:15px;width:auto;display:inline-block}
+.btn.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* maydonlar */
+label{display:block;margin:16px 0 6px;color:var(--muted);font-size:15px}
+input,select,textarea{width:100%;min-height:54px;padding:12px 14px;border-radius:14px;
+  background:var(--surface);border:1.5px solid var(--line);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:100px;resize:vertical}
+
+/* kirish */
+.auth{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 20px}
+.auth .box{max-width:460px;width:100%;margin:0 auto}
+.logo{width:64px;height:64px;border-radius:20px;background:var(--surface2);display:grid;place-items:center;
+  margin-bottom:18px;border:1.5px solid var(--line)}
+.tabs2{display:flex;gap:8px;margin:22px 0 4px;background:var(--surface);padding:5px;border-radius:14px}
+.tabs2 button{flex:1;min-height:46px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:600}
+.tabs2 button.on{background:var(--surface2);color:var(--text)}
+.err{color:var(--danger);margin-top:14px;min-height:22px;font-size:15px}
+.hint{font-size:14px;color:var(--muted);margin-top:6px}
+
+/* kartalar */
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:18px;margin-top:14px}
+.card.flat{border-color:transparent}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stat{flex:1}
+.stat b{display:block;font-size:34px;line-height:1.1}
+.stat.pts b{color:var(--gold)}
+.stat span{color:var(--muted);font-size:14px}
+.stats{display:flex;gap:12px;margin-top:16px}
+.stats .card{margin-top:0;flex:1}
+.empty{padding:26px 18px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:18px;margin-top:14px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:13px;background:var(--surface2);color:var(--muted)}
+.badge.g{background:rgba(92,194,164,.15);color:var(--accent)}
+.news-item{padding:14px 0;border-top:1px solid var(--line)}
+.news-item:first-child{border-top:0;padding-top:0}
+.news-item small{color:var(--muted)}
+
+/* roʻyxat */
+.list{margin-top:14px}
+.li{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:var(--surface);margin-bottom:8px}
+.li .n{width:34px;height:34px;border-radius:50%;background:var(--surface2);display:grid;place-items:center;font-weight:700;font-size:15px;flex:none}
+.li.me{border:1.5px solid var(--accent)}
+.li .grow{flex:1;min-width:0}
+.li .grow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .grow small{color:var(--muted)}
+.li .p{font-weight:700;color:var(--gold)}
+.student{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px}
+.student .top{display:flex;justify-content:space-between;gap:10px}
+.student select{min-height:46px;width:auto;padding:8px 12px;margin-top:10px}
+
+/* pastki menyu */
+.nav{position:fixed;left:0;right:0;bottom:0;background:rgba(13,27,33,.96);backdrop-filter:blur(10px);
+  border-top:1.5px solid var(--line);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));z-index:20}
+.nav button{flex:1;border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;
+  align-items:center;gap:3px;padding:8px 0;font-size:11.5px;min-height:56px;border-radius:12px}
+.nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button.on{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--surface2);border:1.5px solid var(--line);padding:12px 18px;border-radius:14px;z-index:40;max-width:90%}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.back{border:0;background:var(--surface);width:44px;height:44px;border-radius:12px;font-size:20px}
+.spin{display:inline-block;width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 0.8s linear infinite;vertical-align:-3px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+</style>
+</head>
+<body>
+
+<!-- KIRISH -->
+<section id="auth" class="auth hidden">
+  <div class="box">
+    <div class="logo">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#5cc2a4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4.5 0-8-3.4-8-7.7C4 8 8 4 14 3c1 5-1 7-3 9"/><path d="M9 21c0-4 2-7 6-9"/></svg>
+    </div>
+    <h1>Nur biologiya</h1>
+    <p class="muted" style="margin-top:6px">Biologiyani tushunib oʻrgan.</p>
+
+    <div class="tabs2">
+      <button id="tabReg" class="on" type="button">Roʻyxatdan oʻtish</button>
+      <button id="tabLog" type="button">Kirish</button>
+    </div>
+
+    <div id="fName">
+      <label for="name">Ism va familiya</label>
+      <input id="name" autocomplete="name" placeholder="Masalan: Aziz Karimov">
+    </div>
+    <label for="phone">Telefon raqam</label>
+    <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="90 123 45 67">
+    <label for="pass">Parol</label>
+    <input id="pass" type="password" autocomplete="current-password" placeholder="Kamida 6 ta belgi">
+    <p class="hint" id="passHint">Parolni eslab qoling: u bilan keyin kirasiz.</p>
+
+    <div class="err" id="authErr" role="alert"></div>
+    <button class="btn" id="authBtn" type="button" style="margin-top:6px">Roʻyxatdan oʻtish</button>
+  </div>
+</section>
+
+<!-- ASOSIY -->
+<main id="app" class="hidden">
+  <div class="wrap" id="view"></div>
+  <nav class="nav" id="nav" aria-label="Asosiy menyu"></nav>
+</main>
+
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script>
+const SUPABASE_URL = "https://myshvnnmkpbcwtpbgezd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_hM-PmNVzbhNn3qyhfNThOA_m_Odi50s";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = (x)=>{const n=Math.round(Number(x||0)*10)/10;return String(n).replace(".",",")};
+
+let state = { user:null, me:null, isTeacher:false, tab:"home", sub:null, board:[], news:[], students:[], timer:null };
+let mode = "reg";
+
+/* ---------- yordamchilar ---------- */
+function toast(t){const e=$("toast");e.textContent=t;e.classList.remove("hidden");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.add("hidden"),2800)}
+
+function normPhone(raw){
+  let d=String(raw||"").replace(/\D/g,"");
+  if(d.length===9) d="998"+d;
+  if(d.length!==12||!d.startsWith("998")) return null;
+  return d;
+}
+const fakeEmail = (d)=>`p${d}@nurbio.uz`;
+const prettyPhone = (d)=>`+${d.slice(0,3)} ${d.slice(3,5)} ${d.slice(5,8)} ${d.slice(8,10)} ${d.slice(10)}`;
+function dateUz(s){const d=new Date(s);return d.toLocaleDateString("uz-UZ",{day:"numeric",month:"long"})}
+
+/* ---------- kirish / roʻyxatdan oʻtish ---------- */
+function setMode(m){
+  mode=m;
+  $("tabReg").classList.toggle("on",m==="reg");
+  $("tabLog").classList.toggle("on",m==="log");
+  $("fName").classList.toggle("hidden",m!=="reg");
+  $("passHint").classList.toggle("hidden",m!=="reg");
+  $("authBtn").textContent = m==="reg" ? "Roʻyxatdan oʻtish" : "Kirish";
+  $("pass").autocomplete = m==="reg" ? "new-password" : "current-password";
+  $("authErr").textContent="";
+}
+$("tabReg").onclick=()=>setMode("reg");
+$("tabLog").onclick=()=>setMode("log");
+$("authBtn").onclick=submitAuth;
+["name","phone","pass"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter")submitAuth()}));
+
+async function submitAuth(){
+  const err=$("authErr"), btn=$("authBtn");
+  err.textContent="";
+  const name=$("name").value.trim().replace(/\s+/g," ");
+  const phone=normPhone($("phone").value);
+  const pass=$("pass").value;
+  if(mode==="reg" && name.split(" ").length<2){err.textContent="Ism va familiyani toʻliq yozing.";return}
+  if(!phone){err.textContent="Telefon raqamni toʻgʻri yozing. Masalan: 90 123 45 67";return}
+  if(pass.length<6){err.textContent="Parol kamida 6 ta belgidan iborat boʻlsin.";return}
+  btn.disabled=true; const old=btn.textContent; btn.innerHTML='<span class="spin"></span>';
+  try{
+    if(mode==="reg"){
+      const {data,error}=await sb.auth.signUp({email:fakeEmail(phone),password:pass});
+      if(error){
+        err.textContent = /already|registered/i.test(error.message)
+          ? "Bu raqam bilan oldin roʻyxatdan oʻtilgan. “Kirish” ni bosing."
+          : "Roʻyxatdan oʻtib boʻlmadi: "+error.message;
+        return;
+      }
+      if(!data.session){err.textContent="Hisob yaratildi, lekin kirish yopiq. Ustozga xabar bering.";return}
+      const {error:e2}=await sb.from("students").insert({id:data.user.id,full_name:name,phone});
+      if(e2){err.textContent="Maʼlumot saqlanmadi: "+e2.message;return}
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email:fakeEmail(phone),password:pass});
+      if(error){err.textContent="Telefon yoki parol xato.";return}
+    }
+    await boot();
+  }catch(e){
+    err.textContent="Internet bilan muammo. Qayta urinib koʻring.";
+  }finally{
+    btn.disabled=false; btn.textContent=old;
+  }
+}
+
+async function logout(){
+  clearInterval(state.timer);
+  await sb.auth.signOut();
+  state={user:null,me:null,isTeacher:false,tab:"home",sub:null,board:[],news:[],students:[],timer:null};
+  $("app").classList.add("hidden"); $("auth").classList.remove("hidden");
+  $("pass").value="";
+}
+
+/* ---------- yuklash ---------- */
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); setMode("reg"); return }
+  state.user=session.user;
+  const [m,t]=await Promise.all([
+    sb.from("students").select("*").eq("id",state.user.id).maybeSingle(),
+    sb.rpc("is_teacher")
+  ]);
+  state.me=m.data; state.isTeacher=t.data===true;
+  if(!state.me && !state.isTeacher){
+    // hisob bor, lekin profil yoʻq
+    toast("Profil topilmadi. Qaytadan kiring.");
+    await logout(); return;
+  }
+  $("auth").classList.add("hidden"); $("app").classList.remove("hidden");
+  buildNav(); await go("home");
+}
+
+async function loadCommon(){
+  const [b,n]=await Promise.all([
+    sb.rpc("leaderboard"),
+    sb.from("news").select("*").order("created_at",{ascending:false}).limit(20)
+  ]);
+  state.board=b.data||[]; state.news=n.data||[];
+  if(state.me){
+    const {data}=await sb.from("students").select("*").eq("id",state.user.id).maybeSingle();
+    if(data) state.me=data;
+  }
+}
+
+/* ---------- pastki menyu ---------- */
+const ICONS={
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  lessons:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4z"/><path d="M20 5h-7"/><path d="M20 5v13h-6"/>',
+  tests:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4v2h6V4"/><path d="M9 12l2 2 4-4"/>',
+  library:'<path d="M5 4v16"/><path d="M10 4v16"/><path d="M15 5l4 1-3.5 14-4-1z"/>',
+  images:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 9"/>',
+  rooms:'<path d="M5 21V4h9v17"/><path d="M14 8h5v13"/><circle cx="11" cy="13" r=".8"/>'
+};
+const TABS=[["home","Bosh"],["lessons","Darslar"],["tests","Testlar"],["library","Kutubxona"],["images","Mashqlar"],["rooms","Xonalar"]];
+function buildNav(){
+  $("nav").innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" type="button"><svg viewBox="0 0 24 24">${ICONS[k]}</svg>${l}</button>`).join("");
+  $("nav").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.k));
+}
+async function go(tab,sub=null){
+  state.tab=tab; state.sub=sub;
+  $("nav").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===tab && !sub));
+  $("view").innerHTML='<p class="muted" style="padding:40px 0;text-align:center"><span class="spin"></span></p>';
+  window.scrollTo(0,0);
+  try{ await loadCommon(); }catch(e){}
+  render();
+}
+
+/* ---------- koʻrinishlar ---------- */
+function render(){
+  const v=$("view");
+  if(state.sub==="teacher") return renderTeacher();
+  ({home:renderHome,lessons:()=>soon("Darslar","Nazariy va amaliy darslar keyingi bosqichda qoʻshiladi."),
+    tests:renderTests,
+    library:()=>soon("Kutubxona","Darsliklar va qoʻllanmalar keyingi bosqichda qoʻshiladi."),
+    images:()=>soon("Mashqlar","3D rasmli mashqlar keyingi bosqichda qoʻshiladi."),
+    rooms:()=>soon("Xonalar","Guruh xonalari keyingi bosqichda qoʻshiladi.")}[state.tab])();
+}
+
+function soon(title,text){
+  $("view").innerHTML=`<h1>${title}</h1><div class="empty">${text}</div>`+logoutBlock();
+  bindLogout();
+}
+function logoutBlock(){
+  return `<div style="margin-top:34px"><button class="btn ghost" id="outBtn" type="button">Chiqish</button></div>`;
+}
+function bindLogout(){const b=$("outBtn");if(b)b.onclick=logout}
+
+function rankOf(){
+  if(!state.me) return "–";
+  const mine=Number(state.me.points||0);
+  return state.board.filter(r=>Number(r.points)>mine).length+1;
+}
+
+function renderHome(){
+  const me=state.me;
+  const first=me?esc(me.full_name.split(" ")[0]):"Ustoz";
+  let h=`<div class="top"><div><p class="muted">Salom,</p><h1>${first}</h1></div>
+    ${me?`<span class="badge g">${me.grade}-sinf</span>`:`<span class="badge g">Ustoz</span>`}</div>`;
+  if(me){
+    h+=`<div class="stats">
+      <div class="card stat pts"><b>${num(me.points)}</b><span>toʻplangan ball</span></div>
+      <div class="card stat"><b>${rankOf()}</b><span>${state.board.length} oʻquvchi ichida</span></div>
+    </div>
+    <div class="card"><h3>Darsni davom ettirish</h3>
+      <p class="muted" style="margin:6px 0 14px">Birinchi dars tez orada ochiladi.</p>
+      <button class="btn" type="button" data-go="lessons">Darslarga oʻtish</button></div>`;
+  }
+  if(state.isTeacher){
+    h+=`<div class="card"><h3>Ustoz paneli</h3>
+      <p class="muted" style="margin:6px 0 14px">Oʻquvchilar roʻyxati, guruhlar va yangiliklar.</p>
+      <button class="btn" type="button" id="goTeacher">Panelni ochish</button></div>`;
+  }
+  h+=`<h2 style="margin-top:28px">Yangiliklar</h2>`;
+  if(!state.news.length) h+=`<div class="empty">Hozircha yangilik yoʻq.</div>`;
+  else h+=`<div class="card">`+state.news.map(n=>`<div class="news-item"><b>${esc(n.title)}</b>
+      ${n.body?`<p class="muted" style="margin-top:4px">${esc(n.body)}</p>`:""}
+      <small>${dateUz(n.created_at)}</small></div>`).join("")+`</div>`;
+  h+=logoutBlock();
+  $("view").innerHTML=h;
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const gt=$("goTeacher"); if(gt) gt.onclick=()=>go("home","teacher");
+  bindLogout();
+}
+
+function renderTests(){
+  let h=`<h1>Testlar</h1>
+  <div class="card flat" style="padding:0;margin-top:6px"><p class="muted">Mavzulashtirilgan testlar tez orada ochiladi. Hozircha reytingni koʻrishingiz mumkin.</p></div>
+  <h2 style="margin-top:24px">Natijalar doskasi</h2>`;
+  if(!state.board.length) h+=`<div class="empty">Hozircha natija yoʻq.</div>`;
+  else{
+    h+=`<div class="list">`+state.board.slice(0,50).map((r,i)=>{
+      const mine=state.me&&r.full_name===state.me.full_name&&Number(r.points)===Number(state.me.points);
+      return `<div class="li ${mine?"me":""}"><div class="n">${i+1}</div>
+        <div class="grow"><b>${esc(r.full_name)}</b></div><div class="p">${num(r.points)}</div></div>`}).join("")+`</div>`;
+  }
+  $("view").innerHTML=h;
+}
+
+/* ---------- ustoz paneli ---------- */
+async function renderTeacher(){
+  const v=$("view");
+  v.innerHTML=`<div class="top"><button class="back" id="bk" type="button" aria-label="Orqaga">‹</button>
+    <h1 style="flex:1;margin-left:6px">Ustoz paneli</h1></div>
+    <div class="tabs2"><button id="tS" class="on" type="button">Oʻquvchilar</button><button id="tN" type="button">Yangilik</button></div>
+    <div id="tBody"></div>`;
+  $("bk").onclick=()=>{clearInterval(state.timer);go("home")};
+  $("tS").onclick=()=>{$("tS").classList.add("on");$("tN").classList.remove("on");drawStudents(true)};
+  $("tN").onclick=()=>{$("tN").classList.add("on");$("tS").classList.remove("on");clearInterval(state.timer);drawNewsForm()};
+  await drawStudents(true);
+  clearInterval(state.timer);
+  state.timer=setInterval(()=>{ if(state.sub==="teacher" && $("tS")?.classList.contains("on")) drawStudents(false) },10000);
+}
+
+async function drawStudents(showLoader){
+  const body=$("tBody"); if(!body) return;
+  if(showLoader) body.innerHTML='<p class="muted" style="padding:30px 0;text-align:center"><span class="spin"></span></p>';
+  const {data,error}=await sb.from("students").select("*").order("created_at",{ascending:false});
+  if(error){body.innerHTML=`<div class="empty">Roʻyxatni yuklab boʻlmadi.</div>`;return}
+  state.students=data||[];
+  const g={A:0,B:0,C:0,none:0};
+  state.students.forEach(s=>{g[s.grp||"none"]++});
+  let h=`<div class="card"><div class="row"><div><b style="font-size:26px">${state.students.length}</b>
+    <span class="muted"> ta oʻquvchi</span></div>
+    <button class="btn ghost small" id="rf" type="button">Yangilash</button></div>
+    <p class="muted" style="margin-top:8px;font-size:14px">A: ${g.A} · B: ${g.B} · C: ${g.C} · guruhsiz: ${g.none}</p></div>`;
+  if(!state.students.length) h+=`<div class="empty">Hali oʻquvchi roʻyxatdan oʻtmagan.</div>`;
+  h+=`<div style="margin-top:14px">`+state.students.map(s=>`
+    <div class="student" data-id="${s.id}">
+      <div class="top"><div><b>${esc(s.full_name)}</b><br><a class="muted" href="tel:+${esc(s.phone)}" style="text-decoration:none">${prettyPhone(s.phone)}</a></div>
+        <div style="text-align:right"><span class="badge">${s.grade}-sinf</span><br><b style="color:var(--gold)">${num(s.points)}</b></div></div>
+      <select data-grp aria-label="Guruh">
+        <option value="" ${!s.grp?"selected":""}>Guruhsiz</option>
+        ${["A","B","C"].map(x=>`<option value="${x}" ${s.grp===x?"selected":""}>${x} guruh</option>`).join("")}
+      </select>
+      <span class="muted" style="font-size:13px;margin-left:8px">${dateUz(s.created_at)}</span>
+    </div>`).join("")+`</div>`;
+  // tanlash oynasi ochiq boʻlsa, avtoyangilash xalaqit bermasin
+  if(!showLoader && document.activeElement && document.activeElement.tagName==="SELECT") return;
+  body.innerHTML=h;
+  $("rf").onclick=()=>drawStudents(true);
+  body.querySelectorAll("[data-grp]").forEach(sel=>sel.onchange=async()=>{
+    const id=sel.closest("[data-id]").dataset.id;
+    const {error}=await sb.from("students").update({grp:sel.value||null}).eq("id",id);
+    toast(error?"Saqlanmadi":"Guruh saqlandi");
+  });
+}
+
+function drawNewsForm(){
+  $("tBody").innerHTML=`<div class="card">
+    <label for="nt" style="margin-top:0">Sarlavha</label><input id="nt" placeholder="Masalan: Yakshanba kuni imtihon">
+    <label for="nb">Matn (ixtiyoriy)</label><textarea id="nb"></textarea>
+    <button class="btn" id="nsend" type="button" style="margin-top:16px">Eʼlon qilish</button></div>
+    <h3 style="margin-top:24px">Eʼlon qilinganlar</h3>
+    <div id="nlist">${state.news.length?"":'<div class="empty">Hali yangilik yoʻq.</div>'}</div>`;
+  const draw=()=>{ $("nlist").innerHTML=state.news.map(n=>`<div class="li"><div class="grow"><b>${esc(n.title)}</b><small>${dateUz(n.created_at)}</small></div>
+    <button class="btn danger small" data-del="${n.id}" type="button">Oʻchirish</button></div>`).join("")||'<div class="empty">Hali yangilik yoʻq.</div>';
+    $("nlist").querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+      if(!confirm("Bu yangilikni oʻchirasizmi?"))return;
+      const {error}=await sb.from("news").delete().eq("id",b.dataset.del);
+      if(error){toast("Oʻchmadi");return}
+      state.news=state.news.filter(x=>String(x.id)!==b.dataset.del);draw();
+    })};
+  draw();
+  $("nsend").onclick=async()=>{
+    const title=$("nt").value.trim(), body=$("nb").value.trim();
+    if(!title){toast("Sarlavhani yozing");return}
+    const {data,error}=await sb.from("news").insert({title,body:body||null}).select().single();
+    if(error){toast("Saqlanmadi");return}
+    state.news.unshift(data);$("nt").value="";$("nb").value="";draw();toast("Eʼlon qilindi");
+  };
+}
+
+/* ---------- boshlash ---------- */
+setMode("reg");
+boot();
+</script>
+</body>
+</html>
