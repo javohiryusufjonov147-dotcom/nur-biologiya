@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1b21">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nur biologiya">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Nur biologiya</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#0d1b21; --surface:#15272e; --surface2:#1c333b; --line:#27434d;
+  --text:#eef3ef; --muted:#93aab0; --accent:#5cc2a4; --accent-ink:#06231b;
+  --gold:#f0bd52; --danger:#ef7b6c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:17px;line-height:1.45}
+body{min-height:100vh;padding-top:env(safe-area-inset-top,0px)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+h1{font-size:28px}h2{font-size:22px}h3{font-size:18px}
+p{margin:0}
+.muted{color:var(--muted)}
+.brandlogo{display:block;width:150px;height:auto;margin:4px auto 18px}
+.qa{display:grid;gap:10px}
+.wrap{max-width:560px;margin:0 auto;padding:20px 18px 120px}
+.hidden{display:none!important}
+
+/* tugmalar */
+.btn{display:block;width:100%;min-height:54px;padding:14px 18px;border:0;border-radius:14px;
+  background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:17px;cursor:pointer}
+.btn:active{transform:scale(.985)}
+.btn[disabled]{opacity:.55}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn.small{min-height:42px;padding:8px 14px;font-size:15px;width:auto;display:inline-block}
+.btn.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* maydonlar */
+label{display:block;margin:16px 0 6px;color:var(--muted);font-size:15px}
+input,select,textarea{width:100%;min-height:54px;padding:12px 14px;border-radius:14px;
+  background:var(--surface);border:1.5px solid var(--line);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:100px;resize:vertical}
+
+/* kirish */
+.auth{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 20px}
+.auth .box{max-width:460px;width:100%;margin:0 auto}
+.logo{width:64px;height:64px;border-radius:20px;background:var(--surface2);display:grid;place-items:center;
+  margin-bottom:18px;border:1.5px solid var(--line)}
+.tabs2{display:flex;gap:8px;margin:22px 0 4px;background:var(--surface);padding:5px;border-radius:14px}
+.tabs2 button{flex:1;min-height:46px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:600}
+.tabs2 button.on{background:var(--surface2);color:var(--text)}
+.err{color:var(--danger);margin-top:14px;min-height:22px;font-size:15px}
+.hint{font-size:14px;color:var(--muted);margin-top:6px}
+
+/* kartalar */
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:18px;margin-top:14px}
+.card.flat{border-color:transparent}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stat{flex:1}
+.stat b{display:block;font-size:34px;line-height:1.1}
+.stat.pts b{color:var(--gold)}
+.stat span{color:var(--muted);font-size:14px}
+.stats{display:flex;gap:12px;margin-top:16px}
+.stats .card{margin-top:0;flex:1}
+.empty{padding:26px 18px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:18px;margin-top:14px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:13px;background:var(--surface2);color:var(--muted)}
+.badge.g{background:rgba(92,194,164,.15);color:var(--accent)}
+.news-item{padding:14px 0;border-top:1px solid var(--line)}
+.news-item:first-child{border-top:0;padding-top:0}
+.news-item small{color:var(--muted)}
+
+/* roʻyxat */
+.list{margin-top:14px}
+.li{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:var(--surface);margin-bottom:8px}
+.li .n{width:34px;height:34px;border-radius:50%;background:var(--surface2);display:grid;place-items:center;font-weight:700;font-size:15px;flex:none}
+.li.me{border:1.5px solid var(--accent)}
+.li .grow{flex:1;min-width:0}
+.li .grow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .grow small{color:var(--muted)}
+.li .p{font-weight:700;color:var(--gold)}
+.student{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px}
+.student .top{display:flex;justify-content:space-between;gap:10px}
+.student select{min-height:46px;width:auto;padding:8px 12px;margin-top:10px}
+
+/* pastki menyu */
+.nav{position:fixed;left:0;right:0;bottom:0;background:rgba(13,27,33,.96);backdrop-filter:blur(10px);
+  border-top:1.5px solid var(--line);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));z-index:20}
+.nav button{flex:1;border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;
+  align-items:center;gap:3px;padding:8px 0;font-size:11.5px;min-height:56px;border-radius:12px}
+.nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button.on{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--surface2);border:1.5px solid var(--line);padding:12px 18px;border-radius:14px;z-index:40;max-width:90%}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.back{border:0;background:var(--surface);width:44px;height:44px;border-radius:12px;font-size:20px}
+.spin{display:inline-block;width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 0.8s linear infinite;vertical-align:-3px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+
+/* ===== yangi boʻlimlar ===== */
+.tile{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;color:var(--text);cursor:pointer;min-height:68px}
+.tile b{display:block;font-size:18px}.tile small{color:var(--muted)}
+.tile .ic{width:46px;height:46px;border-radius:12px;background:var(--surface2);display:grid;place-items:center;font-size:22px;flex:none}
+.tile .grow{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.chip{min-height:46px;padding:8px 16px;border-radius:23px;border:1.5px solid var(--line);background:var(--surface);color:var(--text);font-weight:600}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;min-height:56px;padding:13px 14px;margin-top:10px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);cursor:pointer;color:var(--text)}
+.opt .l{flex:none;width:28px;height:28px;border-radius:50%;background:var(--surface2);display:grid;place-items:center;font-weight:700;font-size:14px}
+.opt.ok{border-color:var(--accent);background:rgba(92,194,164,.14)}
+.opt.bad{border-color:var(--danger);background:rgba(239,123,108,.12)}
+.bar{height:8px;border-radius:6px;background:var(--surface2);overflow:hidden;margin:10px 0 16px}.bar i{display:block;height:100%;background:var(--accent)}
+.qcard{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px;margin-top:12px}
+.qcard.miss{border-color:var(--danger)}
+.qcard textarea{min-height:70px}
+.orow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.orow input[type=radio]{width:26px;height:26px;min-height:0;padding:0;flex:none;accent-color:var(--accent)}
+.orow input[type=text]{min-height:46px}
+.fb{margin-top:16px;padding:14px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line)}
+.fb.ok{border-color:var(--accent)}.fb.bad{border-color:var(--danger)}
+.imgbox{position:relative;border-radius:14px;overflow:hidden;background:var(--surface);margin:12px 0;-webkit-user-select:none;user-select:none}
+.imgbox img{display:block;width:100%;height:auto}
+.mk{position:absolute;border-radius:50%;border:3px solid var(--accent);transform:translate(-50%,-50%);pointer-events:none;aspect-ratio:1;background:rgba(92,194,164,.18)}
+.mk.bad{border-color:var(--danger);background:rgba(239,123,108,.2)}
+.pgbox{position:relative;background:#fff;border-radius:10px;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:pan-y;min-height:200px}
+.pgbox canvas{display:block;width:100%;height:auto}
+.rnav{display:flex;gap:10px;align-items:center;margin:12px 0}
+.rnav .btn{width:auto;flex:1}
+.rnav input{width:72px;text-align:center;min-height:50px;padding:6px}
+.solcard{padding:26px 18px;text-align:center;font-size:21px;font-weight:700;margin-top:6px}
+.two{display:flex;gap:10px;margin-top:12px}.two .btn{flex:1}
+.thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:var(--surface2)}
+.big{font-size:44px;font-weight:800;line-height:1.1}
+@media print{body{display:none!important}}
+</style>
+</head>
+<body>
+
+<!-- KIRISH -->
+<section id="auth" class="auth hidden">
+  <div class="box">
+    <img class="brandlogo" id="authLogo" alt="NUR Biology" style="width:190px;margin:0 0 10px">
+    <p class="muted" style="margin-top:6px">Biologiyani tushunib oʻrgan.</p>
+
+    <div class="tabs2">
+      <button id="tabReg" class="on" type="button">Roʻyxatdan oʻtish</button>
+      <button id="tabLog" type="button">Kirish</button>
+    </div>
+
+    <div id="fName">
+      <label for="name">Ism va familiya</label>
+      <input id="name" autocomplete="name" placeholder="Masalan: Aziz Karimov">
+    </div>
+    <label for="phone">Telefon raqam</label>
+    <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="90 123 45 67">
+    <label for="pass">Parol</label>
+    <input id="pass" type="password" autocomplete="current-password" placeholder="Kamida 6 ta belgi">
+    <p class="hint" id="passHint">Parolni eslab qoling: u bilan keyin kirasiz.</p>
+
+    <div class="err" id="authErr" role="alert"></div>
+    <button class="btn" id="authBtn" type="button" style="margin-top:6px">Roʻyxatdan oʻtish</button>
+  </div>
+</section>
+
+<!-- ASOSIY -->
+<main id="app" class="hidden">
+  <div class="wrap" id="view"></div>
+  <nav class="nav" id="nav" aria-label="Asosiy menyu"></nav>
+</main>
+
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script>
+const SUPABASE_URL = "https://myshvnnmkpbcwtpbgezd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_hM-PmNVzbhNn3qyhfNThOA_m_Odi50s";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+document.addEventListener("DOMContentLoaded",()=>{const a=document.getElementById("authLogo");if(a)a.src="data:image/webp;base64,"+LOGO});
+
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = (x)=>{const n=Math.round(Number(x||0)*10)/10;return String(n).replace(".",",")};
+
+let state = { user:null, me:null, isTeacher:false, tab:"home", sub:null, ctx:{}, board:[], news:[], students:[], timer:null };
+let mode = "reg";
+
+/* ---------- yordamchilar ---------- */
+function toast(t){const e=$("toast");e.textContent=t;e.classList.remove("hidden");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.add("hidden"),2800)}
+const GR=[6,7,8,9,10,11];
+const LOGO="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";
+const shuffle=(a)=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=(a)=>a[Math.floor(Math.random()*a.length)];
+const SPIN='<p class="muted" style="padding:40px 0;text-align:center"><span class="spin"></span></p>';
+const head=(title)=>`<div class="top"><button class="back" id="bk" type="button" aria-label="Orqaga">‹</button><h1 style="flex:1;margin-left:6px;font-size:24px">${esc(title)}</h1></div>`;
+const gradeChips=(cur)=>`<div class="chips">`+GR.map(g=>`<button class="chip ${g===cur?"on":""}" type="button" data-g="${g}">${g}-sinf</button>`).join("")+`</div>`;
+const gradeOpts=(cur)=>GR.map(g=>`<option value="${g}" ${g===cur?"selected":""}>${g}-sinf</option>`).join("");
+const LET=["A","B","C","D","E","F"];
+const OKS=["Barakalla!","Zoʻr, toʻgʻri!","Miya ishlayapti!","Mana bu gap!"];
+const BADS=["Oshqovoq, bir oʻylab koʻr!","Miyang qursin, yana urinib koʻr!","Kitobni ochib koʻr, javob oʻsha yerda."];
+const imgUrl=(p)=>sb.storage.from("images").getPublicUrl(p).data.publicUrl;
+function msgErr(box,e){box.innerHTML=`<div class="empty">Yuklab boʻlmadi.<br><small>${esc(e&&e.message||e)}</small><br><small>Agar “relation ... does not exist” yozilgan boʻlsa, yangi SQL kodni Supabase’da ishga tushiring.</small></div>`}
+
+function normPhone(raw){
+  let d=String(raw||"").replace(/\D/g,"");
+  if(d.length===9) d="998"+d;
+  if(d.length!==12||!d.startsWith("998")) return null;
+  return d;
+}
+const fakeEmail = (d)=>`p${d}@nurbio.uz`;
+const prettyPhone = (d)=>`+${d.slice(0,3)} ${d.slice(3,5)} ${d.slice(5,8)} ${d.slice(8,10)} ${d.slice(10)}`;
+function dateUz(s){const d=new Date(s);return d.toLocaleDateString("uz-UZ",{day:"numeric",month:"long"})}
+
+/* ---------- ilovani oʻrnatish ---------- */
+let installEv=null;
+window.addEventListener("beforeinstallprompt",(e)=>{e.preventDefault();installEv=e;const c=$("instCard");if(c)c.classList.remove("hidden")});
+const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+
+/* ---------- kirish / roʻyxatdan oʻtish ---------- */
+function setMode(m){
+  mode=m;
+  $("tabReg").classList.toggle("on",m==="reg");
+  $("tabLog").classList.toggle("on",m==="log");
+  $("fName").classList.toggle("hidden",m!=="reg");
+  $("passHint").classList.toggle("hidden",m!=="reg");
+  $("authBtn").textContent = m==="reg" ? "Roʻyxatdan oʻtish" : "Kirish";
+  $("pass").autocomplete = m==="reg" ? "new-password" : "current-password";
+  $("authErr").textContent="";
+}
+$("tabReg").onclick=()=>setMode("reg");
+$("tabLog").onclick=()=>setMode("log");
+$("authBtn").onclick=submitAuth;
+["name","phone","pass"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter")submitAuth()}));
+
+async function submitAuth(){
+  const err=$("authErr"), btn=$("authBtn");
+  err.textContent="";
+  const name=$("name").value.trim().replace(/\s+/g," ");
+  const phone=normPhone($("phone").value);
+  const pass=$("pass").value;
+  if(mode==="reg" && name.split(" ").length<2){err.textContent="Ism va familiyani toʻliq yozing.";return}
+  if(!phone){err.textContent="Telefon raqamni toʻgʻri yozing. Masalan: 90 123 45 67";return}
+  if(pass.length<6){err.textContent="Parol kamida 6 ta belgidan iborat boʻlsin.";return}
+  btn.disabled=true; const old=btn.textContent; btn.innerHTML='<span class="spin"></span>';
+  try{
+    if(mode==="reg"){
+      const {data,error}=await sb.auth.signUp({email:fakeEmail(phone),password:pass});
+      if(error){
+        err.textContent = /already|registered/i.test(error.message)
+          ? "Bu raqam bilan oldin roʻyxatdan oʻtilgan. “Kirish” ni bosing."
+          : "Roʻyxatdan oʻtib boʻlmadi: "+error.message;
+        return;
+      }
+      if(!data.session){err.textContent="Hisob yaratildi, lekin kirish yopiq. Ustozga xabar bering.";return}
+      const {error:e2}=await sb.from("students").insert({id:data.user.id,full_name:name,phone});
+      if(e2){err.textContent="Maʼlumot saqlanmadi: "+e2.message;return}
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email:fakeEmail(phone),password:pass});
+      if(error){err.textContent="Telefon yoki parol xato.";return}
+    }
+    await boot();
+  }catch(e){
+    err.textContent="Internet bilan muammo. Qayta urinib koʻring.";
+  }finally{
+    btn.disabled=false; btn.textContent=old;
+  }
+}
+
+async function logout(){
+  clearInterval(state.timer);
+  await sb.auth.signOut();
+  state={user:null,me:null,isTeacher:false,tab:"home",sub:null,ctx:{},board:[],news:[],students:[],timer:null};
+  $("app").classList.add("hidden"); $("auth").classList.remove("hidden");
+  $("pass").value="";
+}
+
+/* ---------- yuklash ---------- */
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ $("app").classList.add("hidden"); $("auth").classList.remove("hidden"); setMode("reg"); return }
+  state.user=session.user;
+  const [m,t]=await Promise.all([
+    sb.from("students").select("*").eq("id",state.user.id).maybeSingle(),
+    sb.rpc("is_teacher")
+  ]);
+  state.me=m.data; state.isTeacher=t.data===true;
+  if(!state.me && !state.isTeacher){
+    toast("Profil topilmadi. Qaytadan kiring.");
+    await logout(); return;
+  }
+  $("auth").classList.add("hidden"); $("app").classList.remove("hidden");
+  buildNav(); await go("home");
+}
+
+async function loadCommon(){
+  const [b,n]=await Promise.all([
+    sb.rpc("leaderboard"),
+    sb.from("news").select("*").order("created_at",{ascending:false}).limit(20)
+  ]);
+  state.board=b.data||[]; state.news=n.data||[];
+  if(state.me){
+    const {data}=await sb.from("students").select("*").eq("id",state.user.id).maybeSingle();
+    if(data) state.me=data;
+  }
+}
+
+/* ---------- pastki menyu ---------- */
+const ICONS={
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  lessons:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4z"/><path d="M20 5h-7"/><path d="M20 5v13h-6"/>',
+  tests:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4v2h6V4"/><path d="M9 12l2 2 4-4"/>',
+  library:'<path d="M5 4v16"/><path d="M10 4v16"/><path d="M15 5l4 1-3.5 14-4-1z"/>',
+  images:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 9"/>',
+  rooms:'<path d="M5 21V4h9v17"/><path d="M14 8h5v13"/><circle cx="11" cy="13" r=".8"/>'
+};
+const TABS=[["home","Bosh"],["lessons","Darslar"],["tests","Testlar"],["library","Kutubxona"],["images","Mashqlar"],["rooms","Xonalar"]];
+function buildNav(){
+  $("nav").innerHTML=TABS.map(([k,l])=>`<button data-k="${k}" type="button"><svg viewBox="0 0 24 24">${ICONS[k]}</svg>${l}</button>`).join("");
+  $("nav").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.k));
+}
+async function go(tab,sub=null,ctx={}){
+  state.tab=tab; state.sub=sub; state.ctx=ctx||{};
+  $("nav").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===tab && sub!=="teacher"));
+  $("view").innerHTML=SPIN;
+  window.scrollTo(0,0);
+  try{ await loadCommon(); }catch(e){}
+  render();
+}
+
+/* ---------- koʻrinishlar ---------- */
+function render(){
+  if(state.sub==="teacher") return renderTeacher();
+  const T={home:renderHome,
+    lessons:()=>soon("Darslar","Nazariy va amaliy darslar keyingi bosqichda qoʻshiladi."),
+    tests:renderTests, library:renderLibrary, images:renderImages,
+    rooms:()=>soon("Xonalar","Guruh xonalari keyingi bosqichda qoʻshiladi.")};
+  T[state.tab]();
+}
+
+function soon(title,text){
+  $("view").innerHTML=`<h1>${title}</h1><div class="empty">${text}</div>`+logoutBlock();
+  bindLogout();
+}
+function logoutBlock(){
+  return `<div style="margin-top:34px"><button class="btn ghost" id="outBtn" type="button">Chiqish</button></div>`;
+}
+function bindLogout(){const b=$("outBtn");if(b)b.onclick=logout}
+
+function bindUploads(){
+  const U={book:()=>go("library",null,{view:"upload"}),test:()=>go("tests",null,{view:"new",grade:6}),ex:()=>go("images",null,{view:"add"})};
+  document.querySelectorAll("[data-up]").forEach(b=>b.onclick=U[b.dataset.up]);
+}
+function rankOf(){
+  if(!state.me) return "–";
+  const mine=Number(state.me.points||0);
+  return state.board.filter(r=>Number(r.points)>mine).length+1;
+}
+
+function renderHome(){
+  const me=state.me;
+  const first=me?esc(me.full_name.split(" ")[0]):"Ustoz";
+  let h=`<img class="brandlogo" alt="NUR Biology" src="data:image/webp;base64,${LOGO}">`;
+  h+=`<div class="top"><div><p class="muted">Salom,</p><h1>${first}</h1></div>
+    ${me?`<span class="badge g">${me.grade}-sinf</span>`:`<span class="badge g">Ustoz</span>`}</div>`;
+  if(me){
+    h+=`<div class="stats">
+      <div class="card stat pts"><b>${num(me.points)}</b><span>toʻplangan ball</span></div>
+      <div class="card stat"><b>${rankOf()}</b><span>${state.board.length} oʻquvchi ichida</span></div>
+    </div>
+    <div class="card"><h3>Darsni davom ettirish</h3>
+      <p class="muted" style="margin:6px 0 14px">Birinchi dars tez orada ochiladi.</p>
+      <button class="btn" type="button" data-go="lessons">Darslarga oʻtish</button></div>`;
+  }
+  if(state.isTeacher){
+    h+=`<div class="card"><h3>Ustoz paneli</h3>
+      <p class="muted" style="margin:6px 0 14px">Oʻquvchilar roʻyxati, guruhlar va yangiliklar.</p>
+      <button class="btn" type="button" id="goTeacher">Panelni ochish</button>
+      <div class="qa" style="margin-top:10px">
+        <button class="btn ghost" type="button" data-up="book">+ Kitob yoki qoʻllanma yuklash</button>
+        <button class="btn ghost" type="button" data-up="test">+ Test yuklash (PDF)</button>
+        <button class="btn ghost" type="button" data-up="ex">+ Mashq qoʻshish (rasm)</button>
+      </div></div>`;
+  }
+  const showInst=!isStandalone() && (installEv || isIOS());
+  h+=`<div class="card ${showInst?"":"hidden"}" id="instCard"><h3>Ilovani oʻrnatish</h3>
+    <p class="muted" style="margin:6px 0 14px">${installEv?"Telefoningiz ekraniga qoʻying, keyin belgisini bosib kirasiz.":"Safari’da “Ulashish” tugmasini bosing, soʻng “Ekranga qoʻshish” ni tanlang."}</p>
+    ${installEv?`<button class="btn" type="button" id="instBtn">Oʻrnatish</button>`:""}</div>`;
+  h+=`<h2 style="margin-top:28px">Yangiliklar</h2>`;
+  if(!state.news.length) h+=`<div class="empty">Hozircha yangilik yoʻq.</div>`;
+  else h+=`<div class="card">`+state.news.map(n=>`<div class="news-item"><b>${esc(n.title)}</b>
+      ${n.body?`<p class="muted" style="margin-top:4px">${esc(n.body)}</p>`:""}
+      <small>${dateUz(n.created_at)}</small></div>`).join("")+`</div>`;
+  h+=logoutBlock();
+  $("view").innerHTML=h;
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const gt=$("goTeacher"); if(gt) gt.onclick=()=>go("home","teacher");
+  bindUploads();
+  const ib=$("instBtn"); if(ib) ib.onclick=async()=>{installEv.prompt();await installEv.userChoice;installEv=null;$("instCard").classList.add("hidden")};
+  bindLogout();
+}
+
+/* ================= PDF yordamchilari ================= */
+let pdfjsReady=null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve();
+  if(pdfjsReady) return pdfjsReady;
+  pdfjsReady=new Promise((res,rej)=>{
+    const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";res()};
+    s.onerror=()=>{pdfjsReady=null;rej(new Error("PDF oʻqish kutubxonasi yuklanmadi"))};
+    document.head.appendChild(s);
+  });
+  return pdfjsReady;
+}
+
+async function pdfText(buf){
+  await loadPdfJs();
+  const doc=await pdfjsLib.getDocument({data:buf}).promise;
+  let out="";
+  for(let p=1;p<=doc.numPages;p++){
+    const pg=await doc.getPage(p), tc=await pg.getTextContent();
+    let lastY=null, prevEnd=null, line="";
+    for(const it of tc.items){
+      if(typeof it.str!=="string") continue;
+      const y=it.transform[5], x=it.transform[4];
+      if(lastY!==null && Math.abs(y-lastY)>3){ out+=line+"\n"; line=""; prevEnd=null; }
+      if(line && prevEnd!==null && x-prevEnd>(it.height||10)*0.12 && !line.endsWith(" ") && !it.str.startsWith(" ")) line+=" ";
+      line+=it.str; prevEnd=x+(it.width||0); lastY=y;
+      if(it.hasEOL){ out+=line+"\n"; line=""; lastY=null; prevEnd=null; }
+    }
+    out+=line+"\n";
+  }
+  doc.destroy();
+  return out;
+}
+
+/*PARSE_START*/
+function parseQuestions(raw){
+  const LM={"А":"A","В":"B","С":"C","Е":"E"};
+  const L=(ch)=>LM[ch]||ch.toUpperCase();
+  let text=String(raw||"").replace(/\r/g,"").replace(/[\u00A0\u2007\u202F]/g," ").replace(/[ \t]+/g," ");
+  // javoblar kaliti boʻlimi
+  let body=text, key="";
+  const km=[...text.matchAll(/\n\s*(javoblar|javob\s+kalit\w*|kalitlar|kalit|toʻgʻri\s+javoblar|to['ʻ’‘`]?g['ʻ’‘`]?ri\s+javoblar|answers?|ответы)\b[^\n]*/gi)].filter(m=>m.index>text.length*0.3);
+  if(km.length){const m=km[km.length-1]; body=text.slice(0,m.index); key=text.slice(m.index);}
+  const keyMap={};
+  if(key){
+    for(const m of key.matchAll(/(\d{1,3})\s*[-–—.):=]?\s*([A-FАВСЕa-f])(?![A-Za-zА-Яа-я])/g)){
+      const n=+m[1]; if(!(n in keyMap)) keyMap[n]=L(m[2]);
+    }
+  }
+  // savol boshlari
+  const starts=[]; let last=0;
+  for(const m of body.matchAll(/(?:^|\n)[ ]*(\d{1,3})[ ]*[.)][ ]+(?=\S)/g)){
+    const n=+m[1];
+    if(starts.length===0 || (n>last && n<=last+3)){ starts.push({n,idx:m.index,end:m.index+m[0].length}); last=n; }
+  }
+  const items=[];
+  starts.forEach((s,k)=>{
+    const blk=body.slice(s.end, k+1<starts.length?starts[k+1].idx:body.length);
+    // variant belgilari
+    const mk=(letter,from)=>{
+      const cls=letter==="A"?"[AА]":letter==="B"?"[BВ]":letter==="C"?"[CС]":letter==="E"?"[EЕ]":letter;
+      const re=new RegExp("(^|\\s)([*+✔✓=]?)("+cls+")[ ]?[.)]","g"); re.lastIndex=from;
+      const m=re.exec(blk); if(!m) return null;
+      const start=m.index+m[1].length;
+      return {start, end:m.index+m[0].length, mark:!!m[2]};
+    };
+    let best=null;
+    const reA=/(^|\s)([*+✔✓=]?)([AА])[ ]?[.)]/g; let am;
+    while((am=reA.exec(blk))){
+      const chain=[{start:am.index+am[1].length,end:am.index+am[0].length,mark:!!am[2]}];
+      for(const lt of ["B","C","D","E","F"]){
+        const nx=mk(lt,chain[chain.length-1].end); if(!nx) break; chain.push(nx);
+      }
+      if(chain.length>=2){best=chain;break}
+    }
+    if(!best){ return; }
+    const q=blk.slice(0,best[0].start).replace(/\s+/g," ").trim();
+    const opts=[]; let ans=-1; const marks=[];
+    best.forEach((c,j)=>{
+      let t=blk.slice(c.end, j+1<best.length?best[j+1].start:blk.length).replace(/\s+/g," ").trim();
+      let mkd=c.mark;
+      if(/^[*+✔✓=]\s*/.test(t)){mkd=true;t=t.replace(/^[*+✔✓=]\s*/,"")}
+      if(/\s*[*✔✓]$/.test(t)){mkd=true;t=t.replace(/\s*[*✔✓]$/,"")}
+      if(/\((?:to['ʻ’‘`]?g['ʻ’‘`]?ri|\+)\)\s*$/i.test(t)){mkd=true;t=t.replace(/\s*\((?:to['ʻ’‘`]?g['ʻ’‘`]?ri|\+)\)\s*$/i,"")}
+      opts.push(t); if(mkd) marks.push(j);
+    });
+    if(marks.length===1) ans=marks[0];
+    else if(keyMap[s.n]){const j=LET_IDX(keyMap[s.n]); if(j>=0&&j<opts.length) ans=j}
+    if(q && opts.length>=2) items.push({n:s.n,q,opts,ans});
+  });
+  return items;
+}
+function LET_IDX(ch){return "ABCDEF".indexOf(ch)}
+/*PARSE_END*/
+
+/* ================= KUTUBXONA ================= */
+const KINDS={oddiy:"Oddiy darsliklar",ai_darslik:"AI darsliklar (sxemali)",ai_qollanma:"AI qoʻllanmalar"};
+const KICON={oddiy:"📘",ai_darslik:"📊",ai_qollanma:"📝"};
+
+async function renderLibrary(){
+  const c=state.ctx, v=$("view");
+  if(c.view==="upload") return renderBookUpload();
+  if(c.view==="read") return renderReader(c.book);
+  const {data,error}=await sb.from("books").select("*").order("created_at",{ascending:false});
+  if(error){v.innerHTML=`<h1>Kutubxona</h1><div id="lerr"></div>`;msgErr($("lerr"),error);return}
+  const books=data||[];
+  if(!c.kind){
+    v.innerHTML=`<h1>Kutubxona</h1>`
+      +(state.isTeacher?`<button class="btn" id="upB" type="button" style="margin-top:12px">+ Kitob yoki qoʻllanma yuklash</button>`:"")
+      +Object.entries(KINDS).map(([k,l])=>`<button class="tile" data-k="${k}" type="button"><span class="ic">${KICON[k]}</span><span class="grow"><b>${l}</b><small>${books.filter(b=>b.kind===k).length} ta fayl</small></span></button>`).join("")
+      +logoutBlock();
+    v.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>go("library",null,{kind:b.dataset.k}));
+    const u=$("upB"); if(u) u.onclick=()=>go("library",null,{view:"upload"});
+    bindLogout(); return;
+  }
+  if(!c.grade){
+    v.innerHTML=head(KINDS[c.kind])+`<div class="list">`
+      +GR.map(g=>`<button class="tile" data-g="${g}" type="button"><span class="ic">${g}</span><span class="grow"><b>${g}-sinf</b><small>${books.filter(b=>b.kind===c.kind&&b.grade===g).length} ta fayl</small></span></button>`).join("")+`</div>`;
+    $("bk").onclick=()=>go("library");
+    v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("library",null,{kind:c.kind,grade:+b.dataset.g}));
+    return;
+  }
+  const list=books.filter(b=>b.kind===c.kind&&b.grade===c.grade);
+  v.innerHTML=head(`${KINDS[c.kind]}, ${c.grade}-sinf`)+(list.length?"":`<div class="empty">Hozircha fayl yoʻq.</div>`)
+    +list.map(b=>`<div class="tile" style="cursor:default"><span class="ic">${KICON[b.kind]}</span><span class="grow"><b>${esc(b.title)}</b><small>${dateUz(b.created_at)}</small></span>
+      <button class="btn small" data-o="${b.id}" type="button">Ochish</button>
+      ${state.isTeacher?`<button class="btn danger small" data-d="${b.id}" type="button">Oʻchirish</button>`:""}</div>`).join("");
+  $("bk").onclick=()=>go("library",null,{kind:c.kind});
+  v.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>go("library",null,{view:"read",book:list.find(x=>String(x.id)===b.dataset.o),kind:c.kind,grade:c.grade}));
+  v.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{
+    const bk=list.find(x=>String(x.id)===b.dataset.d);
+    if(!confirm(`“${bk.title}” ni oʻchirasizmi?`))return;
+    await sb.storage.from("library").remove([bk.path]);
+    const {error}=await sb.from("books").delete().eq("id",bk.id);
+    toast(error?"Oʻchmadi":"Oʻchirildi"); go("library",null,{kind:c.kind,grade:c.grade});
+  });
+}
+
+function renderBookUpload(){
+  const v=$("view");
+  v.innerHTML=head("Fayl yuklash")+`<div class="card">
+    <label style="margin-top:0">Turi</label><select id="bkind">${Object.entries(KINDS).map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select>
+    <label>Sinf</label><select id="bgr">${gradeOpts(6)}</select>
+    <label>Nomi</label><input id="btitle" placeholder="Masalan: Hujayra tuzilishi">
+    <label>PDF fayl</label><input id="bfile" type="file" accept="application/pdf">
+    <div class="err" id="berr"></div>
+    <button class="btn" id="bgo" type="button" style="margin-top:6px">Yuklash</button></div>
+    <p class="hint">Oʻquvchi faylni sayt ichida varaq-varaq koʻradi, yuklab ola olmaydi.</p>`;
+  $("bk").onclick=()=>go("library");
+  $("bgo").onclick=async()=>{
+    const f=$("bfile").files[0], title=$("btitle").value.trim(), err=$("berr");
+    err.textContent="";
+    if(!title){err.textContent="Nomini yozing.";return}
+    if(!f){err.textContent="PDF faylni tanlang.";return}
+    if(!/\.pdf$/i.test(f.name)){err.textContent="Faqat PDF fayl.";return}
+    const kind=$("bkind").value, grade=+$("bgr").value;
+    const btn=$("bgo"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+    const path=`${kind}/${grade}/${Date.now()}.pdf`;
+    const {error}=await sb.storage.from("library").upload(path,f,{contentType:"application/pdf"});
+    if(error){err.textContent="Yuklanmadi: "+error.message;btn.disabled=false;btn.textContent="Yuklash";return}
+    const {error:e2}=await sb.from("books").insert({kind,grade,title,path});
+    if(e2){await sb.storage.from("library").remove([path]);err.textContent="Saqlanmadi: "+e2.message;btn.disabled=false;btn.textContent="Yuklash";return}
+    toast("Yuklandi"); go("library",null,{kind,grade});
+  };
+}
+
+/* ---------- varaq-varaq oʻqish ---------- */
+let rd={doc:null,page:1,busy:false,pend:null};
+function drawMark(c,w,h){
+  const t=state.me?`${state.me.full_name} · +${state.me.phone}`:"Nur biologiya · ustoz";
+  const fs=Math.max(16,w/24);
+  c.save();
+  c.font=`600 ${fs}px sans-serif`; c.textAlign="center"; c.textBaseline="middle";
+  c.translate(w/2,h/2); c.rotate(-0.5);
+  const tw=c.measureText(t).width+fs*3, step=fs*4.2, R=Math.hypot(w,h)/2+tw;
+  let row=0;
+  for(let y=-R;y<R;y+=step,row++){
+    for(let x=-R+(row%2?tw/2:0);x<R;x+=tw){
+      c.fillStyle="rgba(80,80,80,0.17)"; c.fillText(t,x,y);
+      c.strokeStyle="rgba(255,255,255,0.10)"; c.lineWidth=1; c.strokeText(t,x,y);
+    }
+  }
+  c.restore();
+}
+async function showPage(n){
+  if(!rd.doc||!$("pg")) return;
+  n=Math.max(1,Math.min(rd.doc.numPages,n));
+  if(rd.busy){rd.pend=n;return}
+  rd.busy=true; rd.page=n;
+  try{
+    const page=await rd.doc.getPage(n);
+    const cv=$("pg"); if(!cv) return;
+    const cssW=$("pgBox").clientWidth||360;
+    const v1=page.getViewport({scale:1}), dpr=Math.min(window.devicePixelRatio||1,2.5);
+    const vp=page.getViewport({scale:cssW*dpr/v1.width});
+    cv.width=vp.width; cv.height=vp.height;
+    const cx=cv.getContext("2d");
+    await page.render({canvasContext:cx,viewport:vp}).promise;
+    drawMark(cx,vp.width,vp.height);
+    document.querySelectorAll(".pn").forEach(i=>i.value=n);
+    document.querySelectorAll(".pt").forEach(i=>i.textContent="/ "+rd.doc.numPages);
+  }catch(e){ if($("pgBox")) toast("Varaq chizilmadi") }
+  finally{ rd.busy=false; if(rd.pend){const p=rd.pend;rd.pend=null;showPage(p)} }
+}
+async function renderReader(book){
+  const v=$("view");
+  const ctrl=`<div class="rnav"><button class="btn ghost pv" type="button">‹ Oldingi</button>
+    <input class="pn" type="number" inputmode="numeric" min="1" value="1" aria-label="Varaq raqami"><span class="muted pt">/ –</span>
+    <button class="btn nx" type="button">Keyingi ›</button></div>`;
+  v.innerHTML=head(book.title)+ctrl+`<div class="pgbox" id="pgBox"><canvas id="pg"></canvas></div>`+ctrl;
+  $("bk").onclick=()=>{ if(rd.doc){rd.doc.destroy();rd.doc=null} go("library",null,{kind:state.ctx.kind,grade:state.ctx.grade}) };
+  $("pg").oncontextmenu=(e)=>e.preventDefault();
+  $("pgBox").innerHTML='<p class="muted" style="padding:60px 0;text-align:center"><span class="spin"></span></p><canvas id="pg" class="hidden"></canvas>';
+  try{
+    await loadPdfJs();
+    const {data,error}=await sb.storage.from("library").download(book.path);
+    if(error) throw error;
+    const buf=await data.arrayBuffer();
+    rd.doc=await pdfjsLib.getDocument({data:buf}).promise;
+  }catch(e){ $("pgBox").innerHTML=`<p class="empty" style="color:#333">Faylni ochib boʻlmadi.<br><small>${esc(e&&e.message||e)}</small></p>`; return }
+  $("pgBox").innerHTML='<canvas id="pg"></canvas>';
+  $("pg").oncontextmenu=(e)=>e.preventDefault();
+  document.querySelectorAll(".pv").forEach(b=>b.onclick=()=>{showPage(rd.page-1);window.scrollTo(0,0)});
+  document.querySelectorAll(".nx").forEach(b=>b.onclick=()=>{showPage(rd.page+1);window.scrollTo(0,0)});
+  document.querySelectorAll(".pn").forEach(i=>i.onchange=()=>showPage(parseInt(i.value)||1));
+  let sx=null; const box=$("pgBox");
+  box.addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});
+  box.addEventListener("touchend",e=>{ if(sx===null)return; const dx=e.changedTouches[0].clientX-sx; sx=null; if(Math.abs(dx)>70) showPage(rd.page+(dx<0?1:-1)) },{passive:true});
+  showPage(1);
+}
+document.addEventListener("keydown",(e)=>{ if(!$("pg")||!rd.doc)return; if(e.key==="ArrowRight")showPage(rd.page+1); if(e.key==="ArrowLeft")showPage(rd.page-1) });
+
+/* ================= TESTLAR ================= */
+async function renderTests(){
+  const c=state.ctx, v=$("view");
+  if(c.view==="new") return renderSetForm();
+  const grade=c.grade||(state.me?state.me.grade:6);
+  const {data,error}=await sb.from("question_sets").select("*").eq("grade",grade).order("created_at",{ascending:false});
+  let h=`<h1>Testlar</h1>`+gradeChips(grade);
+  if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button">+ Test yuklash (PDF)</button>`;
+  h+=`<div id="sets"></div>`;
+  h+=`<h2 style="margin-top:28px">Natijalar doskasi</h2>`;
+  if(!state.board.length) h+=`<div class="empty">Hozircha natija yoʻq.</div>`;
+  else{
+    h+=`<div class="list">`+state.board.slice(0,50).map((r,i)=>{
+      const mine=state.me&&r.full_name===state.me.full_name&&Number(r.points)===Number(state.me.points);
+      return `<div class="li ${mine?"me":""}"><div class="n">${i+1}</div>
+        <div class="grow"><b>${esc(r.full_name)}</b></div><div class="p">${num(r.points)}</div></div>`}).join("")+`</div>`;
+  }
+  v.innerHTML=h;
+  v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("tests",null,{grade:+b.dataset.g}));
+  const ns=$("newSet"); if(ns) ns.onclick=()=>go("tests",null,{view:"new",grade});
+  const box=$("sets");
+  if(error){msgErr(box,error);return}
+  const sets=data||[];
+  if(!sets.length){box.innerHTML=`<div class="empty">Bu sinfda hali test yoʻq.</div>`;return}
+  box.innerHTML=sets.map(s=>`<div class="tile" style="cursor:default"><span class="ic">✅</span><span class="grow"><b>${esc(s.title)}</b>
+    <small>${s.qcount} ta savol${s.per_try>0?`, har safar ${s.per_try} tasi`:""}</small></span>
+    <button class="btn small" data-s="${s.id}" type="button">Boshlash</button>
+    ${state.isTeacher?`<button class="btn danger small" data-x="${s.id}" type="button">Oʻchirish</button>`:""}</div>`).join("");
+  box.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>startTest(sets.find(x=>String(x.id)===b.dataset.s)));
+  box.querySelectorAll("[data-x]").forEach(b=>b.onclick=async()=>{
+    const s=sets.find(x=>String(x.id)===b.dataset.x);
+    if(!confirm(`“${s.title}” va uning barcha savollarini oʻchirasizmi?`))return;
+    const {error}=await sb.from("question_sets").delete().eq("id",s.id);
+    toast(error?"Oʻchmadi":"Oʻchirildi"); go("tests",null,{grade});
+  });
+}
+
+/* ---------- ustoz: PDF dan test yaratish ---------- */
+function renderSetForm(){
+  const v=$("view"), g0=state.ctx.grade||6;
+  v.innerHTML=head("Test yuklash")+`<div class="card">
+    <label style="margin-top:0" for="stt">Test nomi</label><input id="stt" placeholder="Masalan: 1–6-mavzular">
+    <label for="stg">Sinf</label><select id="stg">${gradeOpts(g0)}</select>
+    <label for="stp">Har safar nechta savol chiqsin? (0 = hammasi)</label><input id="stp" type="number" inputmode="numeric" value="0" min="0">
+    <label for="stf">PDF fayl</label><input id="stf" type="file" accept="application/pdf">
+    <label for="stx">Yoki matnni shu yerga qoʻying</label><textarea id="stx" placeholder="1. Savol matni&#10;A) variant&#10;B) variant&#10;C) variant&#10;D) variant"></textarea>
+    <div class="err" id="sterr"></div>
+    <button class="btn" id="stgo" type="button" style="margin-top:6px">Oʻqish</button></div>
+    <p class="hint">Savollar “1.” yoki “1)” bilan, variantlar “A)” “B)” bilan boshlansin. PDF dagi matn belgilab nusxa olinadigan boʻlishi kerak (skan rasm emas). Keyingi oynada hammasini tekshirasiz.</p>`;
+  $("bk").onclick=()=>go("tests",null,{grade:g0});
+  $("stgo").onclick=async()=>{
+    const err=$("sterr"); err.textContent="";
+    const title=$("stt").value.trim(), f=$("stf").files[0], tx=$("stx").value.trim();
+    if(!title){err.textContent="Test nomini yozing.";return}
+    if(!f&&!tx){err.textContent="PDF tanlang yoki matn qoʻying.";return}
+    const btn=$("stgo"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+    try{
+      const text=f?await pdfText(await f.arrayBuffer()):tx;
+      const items=parseQuestions(text);
+      if(!items.length){err.textContent="Savol topilmadi. Format: “1. Savol”, “A) variant”. Matnni nusxalab, pastdagi maydonga qoʻyib koʻring.";return}
+      state.draft={title,grade:+$("stg").value,per_try:Math.max(0,parseInt($("stp").value)||0),items,onlyMiss:false};
+      renderReview();
+    }catch(e){err.textContent="Oʻqib boʻlmadi: "+(e&&e.message||e)}
+    finally{btn.disabled=false;btn.textContent="Oʻqish"}
+  };
+}
+
+function renderReview(){
+  const d=state.draft, v=$("view");
+  const miss=d.items.filter(x=>x.ans<0).length;
+  v.innerHTML=head(d.title)+`<div class="card"><b style="font-size:26px">${d.items.length}</b> <span class="muted">ta savol topildi</span>
+    <p class="${miss?"":"muted"}" style="margin-top:6px;${miss?"color:var(--danger)":""}" id="missTxt">${miss?`${miss} tasida toʻgʻri javob belgilanmagan. Oʻzingiz belgilang.`:"Hammasida toʻgʻri javob belgilangan."}</p>
+    <div class="two"><button class="btn ghost small" id="onlyM" type="button">${d.onlyMiss?"Hammasini koʻrsat":"Faqat javobsizlar"}</button>
+    <button class="btn" id="saveSet" type="button">Saqlash</button></div></div><div id="qs"></div>`;
+  $("bk").onclick=()=>{ if(confirm("Bekor qilasizmi? Oʻqilgan savollar yoʻqoladi.")) go("tests",null,{grade:d.grade}) };
+  const draw=()=>{
+    $("qs").innerHTML=d.items.map((x,i)=>({x,i})).filter(o=>!d.onlyMiss||o.x.ans<0).map(({x,i})=>`
+      <div class="qcard ${x.ans<0?"miss":""}" data-i="${i}">
+        <div class="row"><b>${i+1}-savol</b><button class="btn danger small" data-del type="button">Oʻchirish</button></div>
+        <textarea data-f="q" aria-label="Savol">${esc(x.q)}</textarea>
+        ${x.opts.map((o,j)=>`<div class="orow"><input type="radio" name="a${i}" data-f="r" data-j="${j}" ${x.ans===j?"checked":""} aria-label="Toʻgʻri javob ${LET[j]}">
+          <span class="muted" style="width:20px">${LET[j]}</span><input type="text" data-f="o" data-j="${j}" value="${esc(o)}"></div>`).join("")}
+      </div>`).join("")||`<div class="empty">Hammasi belgilangan.</div>`;
+  };
+  draw();
+  const upd=()=>{const m=d.items.filter(x=>x.ans<0).length;$("missTxt").textContent=m?`${m} tasida toʻgʻri javob belgilanmagan. Oʻzingiz belgilang.`:"Hammasida toʻgʻri javob belgilangan."};
+  $("qs").addEventListener("input",e=>{
+    const t=e.target, card=t.closest("[data-i]"); if(!card)return; const x=d.items[+card.dataset.i];
+    if(t.dataset.f==="q") x.q=t.value; else if(t.dataset.f==="o") x.opts[+t.dataset.j]=t.value;
+  });
+  $("qs").addEventListener("change",e=>{
+    const t=e.target, card=t.closest("[data-i]"); if(!card||t.dataset.f!=="r")return;
+    d.items[+card.dataset.i].ans=+t.dataset.j; card.classList.remove("miss"); upd();
+  });
+  $("qs").addEventListener("click",e=>{
+    if(!e.target.closest("[data-del]"))return;
+    const i=+e.target.closest("[data-i]").dataset.i; d.items.splice(i,1); renderReview();
+  });
+  $("onlyM").onclick=()=>{d.onlyMiss=!d.onlyMiss;renderReview()};
+  $("saveSet").onclick=saveSet;
+}
+
+async function saveSet(){
+  const d=state.draft;
+  const clean=d.items.map(x=>{
+    const opts=[]; let ans=-1;
+    x.opts.forEach((o,j)=>{ if(o.trim()){ if(j===x.ans) ans=opts.length; opts.push(o.trim()) } });
+    return {q:x.q.trim(),opts,ans};
+  });
+  const bad=clean.findIndex(x=>!x.q||x.opts.length<2||x.ans<0);
+  if(bad>=0){
+    toast(`${bad+1}-savolni tekshiring: toʻgʻri javobni belgilang`);
+    d.onlyMiss=true; renderReview(); return;
+  }
+  const btn=$("saveSet"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  const {data:set,error}=await sb.from("question_sets").insert({title:d.title,grade:d.grade,per_try:d.per_try,qcount:clean.length}).select().single();
+  if(error){toast("Saqlanmadi: "+error.message);btn.disabled=false;btn.textContent="Saqlash";return}
+  for(let i=0;i<clean.length;i+=100){
+    const rows=clean.slice(i,i+100).map(x=>({set_id:set.id,q:x.q,opts:x.opts,ans:x.ans}));
+    const {error:e2}=await sb.from("questions").insert(rows);
+    if(e2){await sb.from("question_sets").delete().eq("id",set.id);toast("Saqlanmadi: "+e2.message);btn.disabled=false;btn.textContent="Saqlash";return}
+  }
+  toast(`${clean.length} ta savol saqlandi`); state.draft=null; go("tests",null,{grade:d.grade});
+}
+
+/* ---------- oʻquvchi: testni ishlash ---------- */
+const STICKY=/yuqoridagi|barcha|hammasi|hech biri|va\s+[A-F]\b|[A-F]\s*va\s*[A-F]/i;
+async function startTest(set){
+  $("view").innerHTML=SPIN;
+  const {data,error}=await sb.rpc("get_questions",{p_set:set.id});
+  if(error||!data||!data.length){ $("view").innerHTML=head(set.title)+`<div class="empty">Savollarni yuklab boʻlmadi.<br><small>${esc(error&&error.message||"")}</small></div>`; $("bk").onclick=()=>go("tests",null,{grade:set.grade}); return }
+  let qs=shuffle(data); if(set.per_try>0) qs=qs.slice(0,set.per_try);
+  qs=qs.map(q=>{
+    const o=q.opts.map((t,i)=>({t,i}));
+    return {id:q.id,q:q.q,view:o.some(x=>STICKY.test(x.t))?o:shuffle(o)};
+  });
+  state.run={set,qs,i:0,ok:0,wrong:[]};
+  drawQ();
+}
+function drawQ(){
+  const r=state.run, v=$("view"); if(!r) return;
+  if(r.i>=r.qs.length) return drawResult();
+  const q=r.qs[r.i];
+  v.innerHTML=head(r.set.title)+`<div class="bar"><i style="width:${Math.round(r.i/r.qs.length*100)}%"></i></div>
+    <p class="muted">${r.i+1} / ${r.qs.length}</p>
+    <h2 style="margin-top:6px;font-size:20px;line-height:1.4">${esc(q.q)}</h2>
+    <div id="opts">${q.view.map((o,k)=>`<button class="opt" type="button" data-k="${k}"><span class="l">${LET[k]}</span><span>${esc(o.t)}</span></button>`).join("")}</div>
+    <div id="fb"></div>`;
+  $("bk").onclick=()=>{ if(r.i>0&&!confirm("Testni toʻxtatasizmi?"))return; state.run=null; go("tests",null,{grade:r.set.grade}) };
+  v.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answerQ(+b.dataset.k));
+}
+async function answerQ(k){
+  const r=state.run, q=r.qs[r.i]; if(r.lock) return; r.lock=true;
+  const {data:right,error}=await sb.rpc("check_answer",{p_q:q.id});
+  if(error){r.lock=false;toast("Tekshirib boʻlmadi, qayta bosing");return}
+  const rk=q.view.findIndex(o=>o.i===right), good=(k===rk);
+  const btns=$("opts").querySelectorAll(".opt"); btns.forEach(b=>b.disabled=true);
+  btns[rk].classList.add("ok"); if(!good) btns[k].classList.add("bad");
+  if(good) r.ok++; else r.wrong.push({q:q.q,mine:q.view[k].t,right:q.view[rk].t});
+  const last=r.i+1>=r.qs.length;
+  $("fb").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${good?pick(OKS):pick(BADS)}</b></div>
+    <button class="btn" id="nxt" type="button" style="margin-top:14px">${last?"Natijani koʻrish":"Keyingisi"}</button>`;
+  $("nxt").onclick=()=>{r.i++;r.lock=false;drawQ()};
+}
+function drawResult(){
+  const r=state.run, v=$("view"), n=r.qs.length, pc=Math.round(r.ok/n*100);
+  v.innerHTML=head("Natija")+`<div class="card" style="text-align:center"><div class="big">${r.ok} / ${n}</div>
+    <p class="muted" style="margin-top:6px">${pc}% toʻgʻri</p></div>
+    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="toList" type="button">Testlarga</button></div>`
+    +(r.wrong.length?`<h3 style="margin-top:24px">Xatolar</h3>`+r.wrong.map(w=>`<div class="qcard"><b>${esc(w.q)}</b>
+      <p style="margin-top:8px;color:var(--danger)">Sizning javobingiz: ${esc(w.mine)}</p>
+      <p style="color:var(--accent)">Toʻgʻrisi: ${esc(w.right)}</p></div>`).join(""):"");
+  $("bk").onclick=$("toList").onclick=()=>{state.run=null;go("tests",null,{grade:r.set.grade})};
+  $("again").onclick=()=>startTest(r.set);
+}
+
+/* ================= MASHQLAR (rasmli) ================= */
+const EK={rasmli:["🖼️","Rasmli savollar","Rasmga qarab javob tanlang"],solishtirish:["⚖️","Solishtirish","Qaysi biriga tegishli?"],qismi:["🎯","Qismini top","Rasmda toʻgʻri joyni bosing"]};
+
+async function shrinkImage(file,maxW=1400){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("Rasm ochilmadi"));i.src=url});
+    const k=Math.min(1,maxW/img.naturalWidth), w=Math.round(img.naturalWidth*k), h=Math.round(img.naturalHeight*k);
+    const cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(img,0,0,w,h);
+    const wb=await new Promise(r=>cv.toBlob(r,"image/webp",0.88));
+    if(wb&&wb.type==="image/webp") return {blob:wb,ext:"webp"};
+    return {blob:await new Promise(r=>cv.toBlob(r,"image/png")),ext:"png"};
+  }finally{URL.revokeObjectURL(url)}
+}
+
+async function renderImages(){
+  const c=state.ctx, v=$("view");
+  if(c.view==="add") return renderExForm();
+  if(c.view==="run") return drawStep();
+  if(c.view==="end") return drawExEnd();
+  if(!c.kind){
+    v.innerHTML=`<h1>Mashqlar</h1>`+(state.isTeacher?`<button class="btn" id="addEx" type="button" style="margin-top:12px">+ Mashq qoʻshish</button>`:"")
+      +Object.entries(EK).map(([k,[ic,t,s]])=>`<button class="tile" data-k="${k}" type="button"><span class="ic">${ic}</span><span class="grow"><b>${t}</b><small>${s}</small></span></button>`).join("")+logoutBlock();
+    v.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>go("images",null,{kind:b.dataset.k,grade:state.me?state.me.grade:6}));
+    const a=$("addEx"); if(a) a.onclick=()=>go("images",null,{view:"add"});
+    bindLogout(); return;
+  }
+  const grade=c.grade||6;
+  const {data,error}=await sb.from("exercises").select("*").eq("kind",c.kind).eq("grade",grade).order("created_at",{ascending:false});
+  v.innerHTML=head(EK[c.kind][1])+gradeChips(grade)+`<div id="exl"></div>`;
+  $("bk").onclick=()=>go("images");
+  v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("images",null,{kind:c.kind,grade:+b.dataset.g}));
+  const box=$("exl");
+  if(error){msgErr(box,error);return}
+  const list=data||[];
+  if(!list.length){box.innerHTML=`<div class="empty">Bu sinfda hali mashq yoʻq.</div>`;return}
+  box.innerHTML=`<button class="btn" id="go15" type="button">Boshlash</button>
+    ${state.isTeacher?`<h3 style="margin-top:22px">${list.length} ta mashq</h3>`+list.map(e=>`<div class="li">${e.image_path?`<img class="thumb" src="${esc(imgUrl(e.image_path))}" alt="">`:""}
+      <div class="grow"><b>${esc(e.title)}</b></div><button class="btn danger small" data-x="${e.id}" type="button">Oʻchirish</button></div>`).join(""):""}`;
+  $("go15").onclick=()=>startRun(list,{kind:c.kind,grade});
+  box.querySelectorAll("[data-x]").forEach(b=>b.onclick=async()=>{
+    const e=list.find(x=>String(x.id)===b.dataset.x);
+    if(!confirm(`“${e.title}” ni oʻchirasizmi?`))return;
+    if(e.image_path) await sb.storage.from("images").remove([e.image_path]);
+    const {error}=await sb.from("exercises").delete().eq("id",e.id);
+    toast(error?"Oʻchmadi":"Oʻchirildi"); go("images",null,{kind:c.kind,grade});
+  });
+}
+
+/* ---------- ustoz: mashq qoʻshish ---------- */
+function setMarker(box,x,y,r,cls){
+  let m=box.querySelector(".mk"); if(!m){m=document.createElement("div");box.appendChild(m)}
+  m.className="mk "+(cls||""); m.style.left=x+"%"; m.style.top=y+"%"; m.style.width=(r*2)+"%";
+}
+function renderExForm(){
+  const v=$("view"); let img=null, pt=null;
+  v.innerHTML=head("Mashq qoʻshish")+`<div class="card">
+    <label style="margin-top:0" for="ek">Turi</label><select id="ek">${Object.entries(EK).map(([k,[,t]])=>`<option value="${k}">${t}</option>`).join("")}</select>
+    <label for="eg">Sinf</label><select id="eg">${gradeOpts(6)}</select>
+    <label for="et">Sarlavha</label><input id="et" placeholder="Masalan: Oʻsimlik hujayrasi">
+    <label for="ei">Rasm</label><input id="ei" type="file" accept="image/*">
+    <div class="imgbox hidden" id="pvBox"><img id="pv" alt=""></div>
+
+    <div id="g_rasmli">
+      <label for="rq">Savol</label><textarea id="rq" placeholder="Rasmda qaysi organoid koʻrsatilgan?"></textarea>
+      ${[0,1,2,3].map(j=>`<label for="ro${j}">${LET[j]} variant</label><input id="ro${j}">`).join("")}
+      <label for="ra">Toʻgʻri javob</label><select id="ra">${[0,1,2,3].map(j=>`<option value="${j}">${LET[j]}</option>`).join("")}</select>
+    </div>
+    <div id="g_solishtirish" class="hidden">
+      <label for="sa">1-guruh nomi</label><input id="sa" placeholder="Prokariot">
+      <label for="sai">1-guruhga tegishli (har qatorda bittadan)</label><textarea id="sai"></textarea>
+      <label for="sb2">2-guruh nomi</label><input id="sb2" placeholder="Eukariot">
+      <label for="sbi">2-guruhga tegishli (har qatorda bittadan)</label><textarea id="sbi"></textarea>
+    </div>
+    <div id="g_qismi" class="hidden">
+      <label for="qt">Qaysi qismni topish kerak?</label><input id="qt" placeholder="Yadro">
+      <label for="qr">Bosish maydoni kattaligi</label><input id="qr" type="range" min="4" max="30" value="10">
+      <p class="hint">Rasm tanlangach, toʻgʻri qismning ustiga bosib belgilang.</p>
+    </div>
+    <div class="err" id="eerr"></div>
+    <button class="btn" id="ego" type="button" style="margin-top:6px">Saqlash</button></div>`;
+  $("bk").onclick=()=>go("images");
+  const sync=()=>{const k=$("ek").value;["rasmli","solishtirish","qismi"].forEach(x=>$("g_"+x).classList.toggle("hidden",x!==k))};
+  $("ek").onchange=sync;
+  $("ei").onchange=async()=>{
+    const f=$("ei").files[0]; if(!f)return;
+    try{ img=await shrinkImage(f); $("pv").src=URL.createObjectURL(img.blob); $("pvBox").classList.remove("hidden"); pt=null; const m=$("pvBox").querySelector(".mk"); if(m)m.remove() }
+    catch(e){toast("Rasm ochilmadi")}
+  };
+  $("pvBox").onclick=(e)=>{
+    if($("ek").value!=="qismi")return;
+    const rc=$("pvBox").getBoundingClientRect();
+    pt={x:+((e.clientX-rc.left)/rc.width*100).toFixed(1),y:+((e.clientY-rc.top)/rc.height*100).toFixed(1)};
+    setMarker($("pvBox"),pt.x,pt.y,+$("qr").value);
+  };
+  $("qr").oninput=()=>{ if(pt) setMarker($("pvBox"),pt.x,pt.y,+$("qr").value) };
+  $("ego").onclick=async()=>{
+    const err=$("eerr"); err.textContent="";
+    const kind=$("ek").value, grade=+$("eg").value, title=$("et").value.trim();
+    if(!title){err.textContent="Sarlavhani yozing.";return}
+    let data={};
+    if(kind==="rasmli"){
+      const q=$("rq").value.trim(), opts=[0,1,2,3].map(j=>$("ro"+j).value.trim()).filter(Boolean);
+      const a=+$("ra").value, aText=$("ro"+a).value.trim();
+      if(!q||opts.length<2||!aText){err.textContent="Savol, kamida 2 variant va toʻgʻri javobni toʻldiring.";return}
+      const all=[0,1,2,3].map(j=>$("ro"+j).value.trim()); const ans=all.slice(0,a).filter(Boolean).length;
+      data={q,opts,ans};
+    }else if(kind==="solishtirish"){
+      const la=$("sa").value.trim(), lb=$("sb2").value.trim();
+      const ia=$("sai").value.split("\n").map(s=>s.trim()).filter(Boolean), ib=$("sbi").value.split("\n").map(s=>s.trim()).filter(Boolean);
+      if(!la||!lb||!ia.length||!ib.length){err.textContent="Ikkala guruh nomi va ikkalasida ham kamida bittadan qator boʻlsin.";return}
+      data={a:{label:la,items:ia},b:{label:lb,items:ib}};
+    }else{
+      const t=$("qt").value.trim();
+      if(!img){err.textContent="Rasm tanlang.";return}
+      if(!t||!pt){err.textContent="Qism nomini yozing va rasmda uni bosib belgilang.";return}
+      data={target:t,x:pt.x,y:pt.y,r:+$("qr").value};
+    }
+    if(kind!=="solishtirish"&&!img){err.textContent="Rasm tanlang.";return}
+    const btn=$("ego"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+    let path=null;
+    if(img){
+      path=`${kind}/${grade}/${Date.now()}.${img.ext}`;
+      const {error}=await sb.storage.from("images").upload(path,img.blob,{contentType:img.blob.type});
+      if(error){err.textContent="Rasm yuklanmadi: "+error.message;btn.disabled=false;btn.textContent="Saqlash";return}
+    }
+    const {error:e2}=await sb.from("exercises").insert({kind,grade,title,image_path:path,data});
+    if(e2){if(path)await sb.storage.from("images").remove([path]);err.textContent="Saqlanmadi: "+e2.message;btn.disabled=false;btn.textContent="Saqlash";return}
+    toast("Mashq saqlandi"); go("images",null,{kind,grade});
+  };
+}
+
+/* ---------- oʻquvchi: mashq ishlash ---------- */
+function startRun(list,back){
+  let steps=[];
+  list.forEach(e=>{
+    const d=e.data||{};
+    if(e.kind==="solishtirish" && !(d.a&&d.b&&d.a.items&&d.b.items)) return;
+    if(e.kind==="rasmli" && !(Array.isArray(d.opts)&&d.opts.length)) return;
+    if(e.kind==="qismi" && !(e.image_path&&d.x!=null)) return;
+    if(e.kind==="solishtirish"){
+      d.a.items.forEach(t=>steps.push({type:"sol",e,t,side:0}));
+      d.b.items.forEach(t=>steps.push({type:"sol",e,t,side:1}));
+    }else if(e.kind==="rasmli"){
+      steps.push({type:"rasmli",e,view:shuffle(d.opts.map((t,i)=>({t,i})))});
+    }else steps.push({type:"qismi",e});
+  });
+  if(!steps.length){toast("Bu mashqlar hali toʻliq toʻldirilmagan.");return}
+  state.ex={steps:shuffle(steps).slice(0,15),i:0,ok:0,back};
+  state.ctx={view:"run"};
+  drawStep();
+}
+function drawStep(){
+  const r=state.ex, v=$("view"); if(!r) return;
+  if(r.i>=r.steps.length) return drawExEnd();
+  const s=r.steps[r.i], e=s.e, d=e.data||{};
+  let body="";
+  if(s.type==="rasmli"){
+    body=(e.image_path?`<div class="imgbox"><img src="${esc(imgUrl(e.image_path))}" alt="" draggable="false"></div>`:"")
+      +`<h2 style="font-size:20px;line-height:1.4">${esc(d.q)}</h2><div id="opts">`
+      +s.view.map((o,k)=>`<button class="opt" type="button" data-k="${k}"><span class="l">${LET[k]}</span><span>${esc(o.t)}</span></button>`).join("")+`</div>`;
+  }else if(s.type==="sol"){
+    body=(e.image_path?`<div class="imgbox"><img src="${esc(imgUrl(e.image_path))}" alt="" draggable="false"></div>`:"")
+      +`<div class="card solcard">${esc(s.t)}</div><div class="two" id="opts"><button class="btn ghost" data-k="0" type="button">${esc(d.a.label)}</button><button class="btn ghost" data-k="1" type="button">${esc(d.b.label)}</button></div>`;
+  }else{
+    body=`<h2 style="font-size:20px">Rasmda toping: <span style="color:var(--gold)">${esc(d.target)}</span></h2>
+      <div class="imgbox" id="ib" style="cursor:pointer"><img src="${esc(imgUrl(e.image_path))}" alt="" draggable="false"></div>`;
+  }
+  v.innerHTML=head(e.title)+`<div class="bar"><i style="width:${Math.round(r.i/r.steps.length*100)}%"></i></div><p class="muted">${r.i+1} / ${r.steps.length}</p>`+body+`<div id="fb"></div>`;
+  $("bk").onclick=()=>{ if(r.i>0&&!confirm("Mashqni toʻxtatasizmi?"))return; state.ex=null; go("images",null,r.back) };
+  const fin=(good)=>{
+    if(r.lock)return; r.lock=true; if(good) r.ok++;
+    const last=r.i+1>=r.steps.length;
+    $("fb").innerHTML=`<div class="fb ${good?"ok":"bad"}"><b>${good?pick(OKS):pick(BADS)}</b></div><button class="btn" id="nxt" type="button" style="margin-top:14px">${last?"Natijani koʻrish":"Keyingisi"}</button>`;
+    $("nxt").onclick=()=>{r.i++;r.lock=false;drawStep()};
+  };
+  if(s.type==="rasmli"){
+    v.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+      if(r.lock)return; const k=+b.dataset.k, rk=s.view.findIndex(o=>o.i===d.ans);
+      v.querySelectorAll(".opt").forEach(x=>x.disabled=true);
+      v.querySelectorAll(".opt")[rk].classList.add("ok"); if(k!==rk) b.classList.add("bad");
+      fin(k===rk);
+    });
+  }else if(s.type==="sol"){
+    v.querySelectorAll("#opts button").forEach(b=>b.onclick=()=>{
+      if(r.lock)return; const k=+b.dataset.k, good=(k===s.side);
+      v.querySelectorAll("#opts button").forEach(x=>x.disabled=true);
+      v.querySelector(`#opts [data-k="${s.side}"]`).style.cssText="border-color:var(--accent);background:rgba(92,194,164,.14)";
+      if(!good) b.style.cssText="border-color:var(--danger);background:rgba(239,123,108,.12)";
+      fin(good);
+    });
+  }else{
+    $("ib").onclick=(ev)=>{
+      if(r.lock)return; const box=$("ib"), rc=box.getBoundingClientRect();
+      const px=ev.clientX-rc.left, py=ev.clientY-rc.top;
+      const good=Math.hypot(px-d.x/100*rc.width,py-d.y/100*rc.height)<=d.r/100*rc.width;
+      setMarker(box,d.x,d.y,d.r,""); 
+      if(!good){const m=document.createElement("div");m.className="mk bad";m.style.left=(px/rc.width*100)+"%";m.style.top=(py/rc.height*100)+"%";m.style.width="6%";box.appendChild(m)}
+      fin(good);
+    };
+  }
+}
+function drawExEnd(){
+  const r=state.ex, v=$("view"); if(!r) return;
+  const n=r.steps.length;
+  v.innerHTML=head("Natija")+`<div class="card" style="text-align:center"><div class="big">${r.ok} / ${n}</div><p class="muted" style="margin-top:6px">${Math.round(r.ok/n*100)}% toʻgʻri</p></div>
+    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="back2" type="button">Mashqlarga</button></div>`;
+  const back=r.back;
+  $("bk").onclick=$("back2").onclick=()=>{state.ex=null;go("images",null,back)};
+  $("again").onclick=()=>go("images",null,back);
+}
+
+/* ---------- ustoz paneli ---------- */
+async function renderTeacher(){
+  const v=$("view");
+  v.innerHTML=`<div class="top"><button class="back" id="bk" type="button" aria-label="Orqaga">‹</button>
+    <h1 style="flex:1;margin-left:6px">Ustoz paneli</h1></div>
+    <div class="tabs2"><button id="tS" class="on" type="button">Oʻquvchilar</button><button id="tN" type="button">Yangilik</button><button id="tU" type="button">Yuklash</button></div>
+    <div id="tBody"></div>`;
+  $("bk").onclick=()=>{clearInterval(state.timer);go("home")};
+  const tab=(id)=>["tS","tN","tU"].forEach(x=>$(x).classList.toggle("on",x===id));
+  $("tS").onclick=()=>{tab("tS");drawStudents(true)};
+  $("tN").onclick=()=>{tab("tN");clearInterval(state.timer);drawNewsForm()};
+  $("tU").onclick=()=>{tab("tU");clearInterval(state.timer);
+    $("tBody").innerHTML=`<div class="qa" style="margin-top:16px">
+      <button class="btn" type="button" data-up="book">+ Kitob yoki qoʻllanma yuklash</button>
+      <button class="btn" type="button" data-up="test">+ Test yuklash (PDF)</button>
+      <button class="btn" type="button" data-up="ex">+ Mashq qoʻshish (rasm)</button></div>
+      <p class="muted" style="margin-top:14px">Yuklanganlarni oʻchirish: Kutubxona, Testlar yoki Mashqlar boʻlimida, fayl yonidagi “Oʻchirish” tugmasi.</p>`;
+    bindUploads()};
+  await drawStudents(true);
+  clearInterval(state.timer);
+  state.timer=setInterval(()=>{ if(state.sub==="teacher" && $("tS")?.classList.contains("on")) drawStudents(false) },10000);
+}
+
+async function drawStudents(showLoader){
+  const body=$("tBody"); if(!body) return;
+  if(showLoader) body.innerHTML='<p class="muted" style="padding:30px 0;text-align:center"><span class="spin"></span></p>';
+  const {data,error}=await sb.from("students").select("*").order("created_at",{ascending:false});
+  if(error){body.innerHTML=`<div class="empty">Roʻyxatni yuklab boʻlmadi.</div>`;return}
+  state.students=data||[];
+  const g={A:0,B:0,C:0,none:0};
+  state.students.forEach(s=>{g[s.grp||"none"]++});
+  let h=`<div class="card"><div class="row"><div><b style="font-size:26px">${state.students.length}</b>
+    <span class="muted"> ta oʻquvchi</span></div>
+    <button class="btn ghost small" id="rf" type="button">Yangilash</button></div>
+    <p class="muted" style="margin-top:8px;font-size:14px">A: ${g.A} · B: ${g.B} · C: ${g.C} · guruhsiz: ${g.none}</p></div>`;
+  if(!state.students.length) h+=`<div class="empty">Hali oʻquvchi roʻyxatdan oʻtmagan.</div>`;
+  h+=`<div style="margin-top:14px">`+state.students.map(s=>`
+    <div class="student" data-id="${s.id}">
+      <div class="top"><div><b>${esc(s.full_name)}</b><br><a class="muted" href="tel:+${esc(s.phone)}" style="text-decoration:none">${prettyPhone(s.phone)}</a></div>
+        <div style="text-align:right"><span class="badge">${s.grade}-sinf</span><br><b style="color:var(--gold)">${num(s.points)}</b></div></div>
+      <select data-grp aria-label="Guruh">
+        <option value="" ${!s.grp?"selected":""}>Guruhsiz</option>
+        ${["A","B","C"].map(x=>`<option value="${x}" ${s.grp===x?"selected":""}>${x} guruh</option>`).join("")}
+      </select>
+      <span class="muted" style="font-size:13px;margin-left:8px">${dateUz(s.created_at)}</span>
+    </div>`).join("")+`</div>`;
+  // tanlash oynasi ochiq boʻlsa, avtoyangilash xalaqit bermasin
+  if(!showLoader && document.activeElement && document.activeElement.tagName==="SELECT") return;
+  body.innerHTML=h;
+  $("rf").onclick=()=>drawStudents(true);
+  body.querySelectorAll("[data-grp]").forEach(sel=>sel.onchange=async()=>{
+    const id=sel.closest("[data-id]").dataset.id;
+    const {error}=await sb.from("students").update({grp:sel.value||null}).eq("id",id);
+    toast(error?"Saqlanmadi":"Guruh saqlandi");
+  });
+}
+
+function drawNewsForm(){
+  $("tBody").innerHTML=`<div class="card">
+    <label for="nt" style="margin-top:0">Sarlavha</label><input id="nt" placeholder="Masalan: Yakshanba kuni imtihon">
+    <label for="nb">Matn (ixtiyoriy)</label><textarea id="nb"></textarea>
+    <button class="btn" id="nsend" type="button" style="margin-top:16px">Eʼlon qilish</button></div>
+    <h3 style="margin-top:24px">Eʼlon qilinganlar</h3>
+    <div id="nlist">${state.news.length?"":'<div class="empty">Hali yangilik yoʻq.</div>'}</div>`;
+  const draw=()=>{ $("nlist").innerHTML=state.news.map(n=>`<div class="li"><div class="grow"><b>${esc(n.title)}</b><small>${dateUz(n.created_at)}</small></div>
+    <button class="btn danger small" data-del="${n.id}" type="button">Oʻchirish</button></div>`).join("")||'<div class="empty">Hali yangilik yoʻq.</div>';
+    $("nlist").querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+      if(!confirm("Bu yangilikni oʻchirasizmi?"))return;
+      const {error}=await sb.from("news").delete().eq("id",b.dataset.del);
+      if(error){toast("Oʻchmadi");return}
+      state.news=state.news.filter(x=>String(x.id)!==b.dataset.del);draw();
+    })};
+  draw();
+  $("nsend").onclick=async()=>{
+    const title=$("nt").value.trim(), body=$("nb").value.trim();
+    if(!title){toast("Sarlavhani yozing");return}
+    const {data,error}=await sb.from("news").insert({title,body:body||null}).select().single();
+    if(error){toast("Saqlanmadi");return}
+    state.news.unshift(data);$("nt").value="";$("nb").value="";draw();toast("Eʼlon qilindi");
+  };
+}
+
+/* ---------- boshlash ---------- */
+setMode("reg");
+boot();
+
+</script>
+</body>
+</html>
