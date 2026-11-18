@@ -141,6 +141,30 @@ textarea{min-height:100px;resize:vertical}
 .thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:var(--surface2)}
 .big{font-size:44px;font-weight:800;line-height:1.1}
 @media print{body{display:none!important}}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;margin:2px 0 14px}
+.hlogo{height:42px;width:auto;display:block}
+.hact{display:flex;align-items:center;gap:8px}
+.ringbtn,.bell{width:58px;height:58px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;position:relative;padding:0}
+.bell{width:48px;height:48px;background:var(--surface)}
+.bell svg{width:24px;height:24px;fill:none;stroke:var(--text,#fff);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bell i{position:absolute;top:-2px;right:-2px;min-width:20px;height:20px;border-radius:10px;background:var(--danger);color:#fff;font-size:12px;font-style:normal;font-weight:700;display:grid;place-items:center;padding:0 4px}
+.planetbox{width:min(78vw,300px);margin:6px auto 0}.planetbox svg{width:100%;height:auto;display:block}
+.fl{animation:plfl 5s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes plfl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.spin2{animation:plsp 40s linear infinite;transform-origin:150px 150px}
+@keyframes plsp{to{transform:rotate(360deg)}}
+.ladder{display:flex;gap:8px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch}
+.ladder .st{flex:none;width:64px;text-align:center;font-size:12px;color:var(--muted);opacity:.5}
+.ladder .st i{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 4px;border-radius:50%;background:var(--surface);font-style:normal;font-size:26px}
+.ladder .st.done{opacity:1}.ladder .st.cur{opacity:1;color:var(--gold)}.ladder .st.cur i{border:2px solid var(--gold)}
+.hrow{display:flex;gap:12px;overflow-x:auto;padding:10px 0 4px;-webkit-overflow-scrolling:touch}
+.hcard{flex:none;width:150px;text-align:left;border:0;border-radius:16px;background:var(--surface);color:inherit;padding:14px;display:flex;flex-direction:column;gap:6px;cursor:pointer;font:inherit}
+.hcard .e{font-size:34px}.hcard b{font-size:14px;line-height:1.25}.hcard small{color:var(--muted)}
+.popup{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:50;display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:var(--surface2);border:1.5px solid var(--accent);box-shadow:0 8px 30px rgba(0,0,0,.5);animation:ppin .35s ease}
+@keyframes ppin{from{transform:translateY(-30px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.fl,.spin2,.popup{animation:none}}
+.usg{display:block;margin-top:6px;font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -189,7 +213,7 @@ const $ = (id)=>document.getElementById(id);
 const esc = (s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = (x)=>{const n=Math.round(Number(x||0)*10)/10;return String(n).replace(".",",")};
 
-let state = { user:null, me:null, isTeacher:false, tab:"home", sub:null, ctx:{}, board:[], news:[], students:[], timer:null };
+let state = { user:null, me:null, isTeacher:false, tab:"home", sub:null, ctx:{}, board:[], news:[], students:[], prog:{}, timer:null, planet:null, todaySec:0 };
 let mode = "reg";
 
 /* ---------- yordamchilar ---------- */
@@ -276,9 +300,9 @@ async function submitAuth(){
 }
 
 async function logout(){
-  clearInterval(state.timer);
+  clearInterval(state.timer); clearInterval(usageTimer); popShown=false;
   await sb.auth.signOut();
-  state={user:null,me:null,isTeacher:false,tab:"home",sub:null,ctx:{},board:[],news:[],students:[],timer:null};
+  state={user:null,me:null,isTeacher:false,tab:"home",sub:null,ctx:{},board:[],news:[],students:[],prog:{},timer:null,planet:null,todaySec:0};
   $("app").classList.add("hidden"); $("auth").classList.remove("hidden");
   $("pass").value="";
 }
@@ -298,15 +322,22 @@ async function boot(){
     await logout(); return;
   }
   $("auth").classList.add("hidden"); $("app").classList.remove("hidden");
-  buildNav(); await go("home");
+  buildNav(); startUsage();
+  if(await maybePlacement()) return;
+  const hm=/^#darslar(\d+)/.exec(location.hash);
+  if(hm){ try{history.replaceState(null,"",location.pathname+location.search)}catch(e){} await go("lessons",null,{grade:+hm[1]}); }
+  else await go("home");
 }
 
 async function loadCommon(){
-  const [b,n]=await Promise.all([
+  const [b,n,at,pl]=await Promise.all([
     sb.rpc("leaderboard"),
-    sb.from("news").select("*").order("created_at",{ascending:false}).limit(20)
+    sb.from("news").select("*").order("created_at",{ascending:false}).limit(20),
+    sb.from("attempts").select("grade,lesson,mistakes,passed,points"),
+    state.me?sb.rpc("planet_state"):Promise.resolve({data:null})
   ]);
-  state.board=b.data||[]; state.news=n.data||[];
+  if(pl&&pl.data){ state.planet=pl.data; state.todaySec=pl.data.today||0; }
+  state.board=b.data||[]; state.news=n.data||[]; state.prog=progOf(at&&at.data);
   if(state.me){
     const {data}=await sb.from("students").select("*").eq("id",state.user.id).maybeSingle();
     if(data) state.me=data;
@@ -328,6 +359,7 @@ function buildNav(){
   $("nav").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.k));
 }
 async function go(tab,sub=null,ctx={}){
+  $("nav").classList.remove("hidden");
   state.tab=tab; state.sub=sub; state.ctx=ctx||{};
   $("nav").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===tab && sub!=="teacher"));
   $("view").innerHTML=SPIN;
@@ -339,8 +371,10 @@ async function go(tab,sub=null,ctx={}){
 /* ---------- koʻrinishlar ---------- */
 function render(){
   if(state.sub==="teacher") return renderTeacher();
+  if(state.tab==="home"&&state.sub==="planet") return renderPlanet();
+  if(state.tab==="home"&&state.sub==="news") return renderNews();
   const T={home:renderHome,
-    lessons:()=>soon("Darslar","Nazariy va amaliy darslar keyingi bosqichda qoʻshiladi."),
+    lessons:renderLessons,
     tests:renderTests, library:renderLibrary, images:renderImages,
     rooms:()=>soon("Xonalar","Guruh xonalari keyingi bosqichda qoʻshiladi.")};
   T[state.tab]();
@@ -365,10 +399,248 @@ function rankOf(){
   return state.board.filter(r=>Number(r.points)>mine).length+1;
 }
 
+/* ================= SAYYORA VA KUNLIK ODAT ================= */
+const PSTARTS=[0,3,6,10,15,21,30,45,60,75,90,120,150,180];
+const PCOMMON=[
+  {e:"⚛️",name:"Atomlar",info:"Hamma tirik narsa atomlardan boshlanadi: vodorod (H), kislorod (O), uglerod (C). Sayyorang hozir shu mayda zarralardan iborat."},
+  {e:"🧬",name:"Oqsil",info:"Atomlar birikib oqsil molekulasi hosil boʻldi. Oqsil — tirik tananing asosiy qurilish materiali."},
+  {e:"🔵",name:"Oddiy hujayra",info:"Birinchi hujayra paydo boʻldi. Yadrosi yoʻq, irsiy maʼlumot hujayra ichida erkin turadi (prokariot)."},
+  {e:"🧫",name:"Murakkab hujayra",info:"Hujayra yadro va organoidlar (mitoxondriya va boshqalar) orttirdi. Bu eukariot hujayra."},
+  {e:"🫧",name:"Amyoba",info:"Bir hujayrali jonzot. Soxta oyoqlari bilan harakatlanadi va oziqni oʻrab oladi."},
+  {e:"🌀",name:"Xivchinli (evglena)",info:"Xivchin bilan suzadi. Quyoshda oziqlanadi ham, boshqalarni ham yeydi. Endi yoʻl ajraladi: oʻsimlik yoki hayvon."}
+];
+const PPLANT=[
+  {e:"🟢",name:"Volvoks",info:"Hujayralar birlashib koloniya boʻldi. Bu koʻp hujayralilikka birinchi qadam."},
+  {e:"🌊",name:"Suv oʻtlari",info:"Suvda yashaydigan oʻsimliklar. Xlorofill bilan quyosh nurini ushlaydi va kislorod chiqaradi."},
+  {e:"🍀",name:"Moxlar",info:"Oʻsimliklar quruqlikka chiqdi. Ildizi yoʻq, ildizchalari bilan nam joyga yopishadi."},
+  {e:"🌿",name:"Paporotniklar",info:"Oʻtkazuvchi toʻqimali oʻsimlik. Urugʻ oʻrniga spora bilan koʻpayadi."}
+];
+const PANIMAL=[
+  {e:"🪼",name:"Gidra",info:"Gidra — koʻp hujayrali hayvon. Tanasi hujayralardan iborat, paypaslagichlari bilan oziq tutadi."},
+  {e:"🪱",name:"Yassi chuvalchang",info:"Tanasi ikki tomonlama simmetrik. Hayvonlar ichida birinchi boʻlib bosh tomoni paydo boʻlgan."},
+  {e:"🐟",name:"Baliq",info:"Umurtqali hayvon. Jabra bilan nafas oladi, suzgichlari bilan suzadi."},
+  {e:"🐸",name:"Qurbaqa",info:"Suvda ham, quruqlikda ham yashaydi. Baliqdan quruqlik hayvonlariga oʻtish bosqichi."}
+];
+const PUNSET=[0,1,2,3].map(()=>({e:"🌱",name:"Koʻp hujayrali jonzot",info:"Yoʻlingni tanla: oʻsimlik yoki hayvon. Tanlovga qarab sayyorang rivojlanadi."}));
+const PTAIL=[
+  {e:"🌳",name:"Biogeotsenoz",info:"Oʻz biogeotsenozing: oʻsimlik, hayvon, zamburugʻ va bakteriyalar bir joyda birga yashaydi."},
+  {e:"🏝️",name:"Quruqlik va tuproq",info:"Sayyora butunlay suv edi. Endi quruqlik paydo boʻldi, tuproq hosil boʻla boshladi."},
+  {e:"🏔️",name:"Togʻlar va jamoalar",info:"Togʻlar koʻtarildi, oʻsimlik va hayvon jamoalari yer yuziga tarqaldi."},
+  {e:"🌍",name:"Biosfera",info:"Sayyorang tayyor! Suv, quruqlik, tuproq, togʻlar va tiriklar jamoasi — butun Yer tiriklik bilan toʻlgan. Bu biosfera."}
+];
+function stageList(path){
+  const mid=path==="plant"?PPLANT:path==="animal"?PANIMAL:PUNSET;
+  return PCOMMON.concat(mid,PTAIL).map((s,i)=>({...s,start:PSTARTS[i]}));
+}
+function stageIdx(grow){let i=0;PSTARTS.forEach((s,k)=>{if(grow>=s)i=k});return i}
+function stageOf(grow,path){return stageList(path)[stageIdx(grow)]}
+
+function pRnd(seed){let s=seed;return()=>(s=(s*9301+49297)%233280)/233280}
+function pBubbles(n,seed,col,rmax){
+  const r=pRnd(seed);let o="";
+  for(let k=0;k<n;k++){const a=r()*6.283,d=Math.sqrt(r())*125,x=150+Math.cos(a)*d,y=150+Math.sin(a)*d,rr=2+r()*rmax;
+    o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rr.toFixed(1)}" fill="${col}" opacity="${(.15+r()*.3).toFixed(2)}"/>`}
+  return o;
+}
+function pStars(n,seed){
+  const r=pRnd(seed);let o="";
+  for(let k=0;k<n;k++){o+=`<circle cx="${(r()*300).toFixed(0)}" cy="${(r()*300).toFixed(0)}" r="${(.6+r()*1.3).toFixed(1)}" fill="#fff" opacity="${(.3+r()*.6).toFixed(2)}"/>`}
+  return o;
+}
+function pArt(i,path){
+  const D=(a,b)=>`<defs><radialGradient id="pgr" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></radialGradient><clipPath id="pcl"><circle cx="150" cy="150" r="140"/></clipPath><clipPath id="pdk"><circle cx="150" cy="150" r="106"/></clipPath></defs><circle cx="150" cy="150" r="146" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="3"/><circle cx="150" cy="150" r="140" fill="url(#pgr)"/>`;
+  const T=(t,x,y,s,x2)=>`<text x="${x}" y="${y}" font-size="${s}" text-anchor="middle" dominant-baseline="central" ${x2||""}>${t}</text>`;
+  const F=(inner,dl)=>`<g class="fl" style="animation-delay:${dl||0}s">${inner}</g>`;
+  const wrap=(inner)=>`<svg viewBox="0 0 300 300" role="img" aria-label="Sayyora">${inner}</svg>`;
+  if(i===0){
+    return wrap(D("#143a5c","#06111d")+`<g clip-path="url(#pcl)">${pBubbles(18,3,"#7dd3fc",3)}</g>`+
+      F(`<circle cx="150" cy="112" r="36" fill="#6b7280"/><text x="150" y="113" font-size="32" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central">C</text><text x="150" y="160" font-size="12" fill="#cbd5e1" text-anchor="middle">uglerod</text>`,0)+
+      F(`<circle cx="92" cy="205" r="28" fill="#ef4444"/><text x="92" y="206" font-size="26" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central">O</text><text x="92" y="244" font-size="12" fill="#cbd5e1" text-anchor="middle">kislorod</text>`,.8)+
+      F(`<circle cx="208" cy="205" r="21" fill="#60a5fa"/><text x="208" y="206" font-size="22" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central">H</text><text x="208" y="238" font-size="12" fill="#cbd5e1" text-anchor="middle">vodorod</text>`,1.6));
+  }
+  if(i===1){
+    let ch="",pts=[];const cols=["#f472b6","#a78bfa","#60a5fa","#34d399","#fbbf24","#fb7185","#38bdf8","#c084fc","#4ade80","#f59e0b"];
+    for(let k=0;k<10;k++){pts.push([40+k*24.5,150+Math.sin(k*.95)*42])}
+    ch+=`<polyline points="${pts.map(p=>p.join(",")).join(" ")}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    pts.forEach((p,k)=>{ch+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="14" fill="${cols[k]}" stroke="rgba(255,255,255,.4)" stroke-width="2"/>`});
+    return wrap(D("#33205a","#0e0a22")+`<g clip-path="url(#pcl)">${pBubbles(14,5,"#c4b5fd",3)}</g>`+F(ch,0));
+  }
+  if(i===2){
+    return wrap(D("#0f4a45","#06211f")+`<g clip-path="url(#pcl)">${pBubbles(16,7,"#5eead4",3)}</g>`+
+      F(`<circle cx="150" cy="150" r="80" fill="rgba(94,234,212,.16)" stroke="#5eead4" stroke-width="4"/>
+      <path d="M105 150 q15 -32 30 0 t30 0 t30 0" fill="none" stroke="#fde68a" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="120" cy="115" r="4" fill="#99f6e4"/><circle cx="175" cy="120" r="4" fill="#99f6e4"/><circle cx="130" cy="190" r="4" fill="#99f6e4"/><circle cx="180" cy="185" r="4" fill="#99f6e4"/><circle cx="150" cy="105" r="3" fill="#99f6e4"/>`));
+  }
+  if(i===3){
+    return wrap(D("#133a56","#071b2b")+`<g clip-path="url(#pcl)">${pBubbles(14,9,"#7dd3fc",3)}</g>`+
+      F(`<circle cx="150" cy="150" r="100" fill="rgba(125,211,252,.15)" stroke="#7dd3fc" stroke-width="4"/>
+      <circle cx="138" cy="138" r="36" fill="#a78bfa"/><circle cx="138" cy="138" r="38" fill="none" stroke="#ddd6fe" stroke-width="3"/><circle cx="132" cy="132" r="11" fill="#6d28d9"/>
+      <ellipse cx="205" cy="175" rx="18" ry="10" fill="#fb923c" transform="rotate(30 205 175)"/><ellipse cx="108" cy="200" rx="16" ry="9" fill="#fb923c" transform="rotate(-20 108 200)"/><ellipse cx="190" cy="110" rx="14" ry="8" fill="#fb923c" transform="rotate(-40 190 110)"/>
+      <path d="M170 150 q14 -10 24 4 t-2 22" fill="none" stroke="#fbcfe8" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="170" cy="205" r="3" fill="#bae6fd"/><circle cx="95" cy="160" r="3" fill="#bae6fd"/><circle cx="160" cy="95" r="3" fill="#bae6fd"/>`));
+  }
+  if(i===4){
+    return wrap(D("#17402e","#07231a")+`<g clip-path="url(#pcl)">${pBubbles(16,11,"#86efac",3)}</g>`+
+      F(`<path d="M70 150 C58 112 98 80 130 92 C148 62 192 70 196 102 C232 102 246 142 220 166 C236 204 190 228 166 212 C146 242 98 232 100 202 C68 206 54 176 70 150Z" fill="rgba(167,243,208,.28)" stroke="#6ee7b7" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="150" cy="150" r="24" fill="#34d399"/><circle cx="146" cy="146" r="8" fill="#059669"/>
+      <circle cx="195" cy="150" r="9" fill="rgba(255,255,255,.3)"/><circle cx="110" cy="130" r="7" fill="rgba(255,255,255,.25)"/><circle cx="130" cy="195" r="8" fill="rgba(255,255,255,.25)"/>`));
+  }
+  if(i===5){
+    return wrap(D("#0f3f5e","#061f2f")+`<g clip-path="url(#pcl)">${pBubbles(16,13,"#7dd3fc",3)}</g>`+
+      F(`<g transform="rotate(-16 150 165)"><ellipse cx="150" cy="165" rx="70" ry="36" fill="rgba(34,197,94,.5)" stroke="#86efac" stroke-width="4"/>
+      <circle cx="150" cy="165" r="13" fill="#bbf7d0"/><circle cx="115" cy="160" r="5" fill="#15803d"/><circle cx="125" cy="182" r="5" fill="#15803d"/><circle cx="178" cy="150" r="5" fill="#15803d"/><circle cx="182" cy="180" r="5" fill="#15803d"/><circle cx="205" cy="160" r="6" fill="#ef4444"/>
+      <path d="M220 158 q26 -34 52 -8 t30 -34" fill="none" stroke="#bbf7d0" stroke-width="4" stroke-linecap="round" transform="translate(-30 0)"/></g>`));
+  }
+  if(i===6){
+    if(path==="plant") return wrap(D("#0f4d3a","#052820")+`<g clip-path="url(#pcl)">${pBubbles(16,15,"#86efac",3)}</g>`+
+      F(`<circle cx="150" cy="150" r="74" fill="rgba(74,222,128,.22)" stroke="#4ade80" stroke-width="4"/>`+
+        [0,1,2,3,4,5,6,7,8,9,10,11].map(k=>{const a=k/12*6.283;return `<circle cx="${(150+Math.cos(a)*50).toFixed(1)}" cy="${(150+Math.sin(a)*50).toFixed(1)}" r="9" fill="#22c55e" stroke="#bbf7d0" stroke-width="2"/>`}).join("")+
+        `<circle cx="140" cy="150" r="14" fill="#16a34a"/><circle cx="168" cy="152" r="11" fill="#15803d"/>`));
+    if(path==="animal") return wrap(D("#0b3b5c","#041f35")+`<g clip-path="url(#pcl)">${pBubbles(16,17,"#7dd3fc",3)}</g>`+
+      F(`<path d="M150 110 q-50 -4 -66 -42" fill="none" stroke="#fdba74" stroke-width="6" stroke-linecap="round"/><path d="M150 110 q-26 -22 -30 -58" fill="none" stroke="#fdba74" stroke-width="6" stroke-linecap="round"/><path d="M150 110 q0 -30 0 -62" fill="none" stroke="#fdba74" stroke-width="6" stroke-linecap="round"/><path d="M150 110 q26 -22 30 -58" fill="none" stroke="#fdba74" stroke-width="6" stroke-linecap="round"/><path d="M150 110 q50 -4 66 -42" fill="none" stroke="#fdba74" stroke-width="6" stroke-linecap="round"/>
+      <rect x="130" y="106" width="40" height="110" rx="18" fill="#fbbf86"/><ellipse cx="150" cy="226" rx="34" ry="12" fill="#f59e0b"/><circle cx="150" cy="120" r="6" fill="#92400e"/>`));
+    return pArt(5,null);
+  }
+  if(i===7){
+    if(path==="plant") return wrap(D("#0b4a6c","#07304a")+`<g clip-path="url(#pcl)">${pBubbles(18,19,"#bae6fd",3)}</g>`+F(T("🌿",100,185,84)+T("🌿",200,160,104)+T("🌿",150,222,56),0));
+    return wrap(D("#3d2c1c","#1d130a")+`<g clip-path="url(#pcl)">${pBubbles(18,21,"#fcd9a8",3)}</g>`+F(T("🪱",150,150,120,'transform="rotate(-12 150 150)"')));
+  }
+  if(i===8){
+    if(path==="plant") return wrap(D("#17512d","#052e16")+`<g clip-path="url(#pcl)"><ellipse cx="150" cy="232" rx="120" ry="40" fill="#4b5563"/><ellipse cx="150" cy="170" rx="86" ry="48" fill="#6b7280"/>`+
+      [[100,138,24],[135,128,28],[172,130,26],[205,142,22],[120,118,18],[160,112,18],[190,118,15]].map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="${c[2]}" fill="#22c55e"/><circle cx="${c[0]-5}" cy="${c[1]-5}" r="${c[2]*.55}" fill="#4ade80"/>`).join("")+
+      `</g>`+T("💧",70,80,24)+T("💧",230,70,20));
+    return wrap(D("#0b4a6c","#06304a")+`<g clip-path="url(#pcl)">${pBubbles(18,23,"#bae6fd",3)}</g>`+F(T("🐟",150,150,118),0)+F(T("🐠",90,215,40),1)+F(T("🐟",225,95,30),2));
+  }
+  if(i===9){
+    if(path==="plant") return wrap(D("#1a5a31","#063418")+`<g clip-path="url(#pcl)"><ellipse cx="150" cy="260" rx="150" ry="60" fill="#14532d"/></g>`+F(T("🌿",95,190,88)+T("🌿",205,175,108)+T("🌿",150,215,64),0)+T("☀️",225,62,36));
+    return wrap(D("#1c5a3a","#082a18")+`<g clip-path="url(#pcl)"><ellipse cx="150" cy="238" rx="130" ry="46" fill="#0e7490" opacity=".7"/></g>`+F(T("🐸",150,150,118),0)+T("🌿",70,215,44)+T("🪷",232,222,40));
+  }
+  if(i===10){
+    return wrap(D("#2a7ab8","#0a2d4d")+`<g clip-path="url(#pcl)"><ellipse cx="150" cy="290" rx="190" ry="110" fill="#15803d"/><ellipse cx="90" cy="260" rx="120" ry="60" fill="#16a34a"/></g>`+
+      T("☀️",232,68,38)+T("🌳",92,162,74)+T("🌳",196,176,62)+F(T("🦋",128,98,28),0)+F(T("🐦",70,100,26),1.2)+T("🐇",150,222,38)+T("🍄",214,224,28)+T("🌼",58,214,24));
+  }
+  const land={a:"M110 110 C130 85 175 90 185 115 C200 135 170 155 150 150 C125 160 95 140 110 110Z",b:"M170 170 C190 160 215 175 210 195 C205 215 175 225 160 210 C150 195 155 178 170 170Z",c:"M85 170 C100 160 120 170 118 185 C115 200 92 205 82 192 C76 184 78 175 85 170Z"};
+  const planet=(lands,extra)=>`<defs><radialGradient id="ocn" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#075985"/></radialGradient><clipPath id="pdk"><circle cx="150" cy="150" r="106"/></clipPath></defs>${pStars(40,31)}<circle cx="150" cy="150" r="114" fill="rgba(125,211,252,.12)"/><circle cx="150" cy="150" r="106" fill="url(#ocn)"/><g clip-path="url(#pdk)">${lands}${extra||""}</g><circle cx="150" cy="150" r="106" fill="none" stroke="rgba(186,230,253,.55)" stroke-width="3"/>`;
+  if(i===11) return wrap(planet(`<path d="${land.c}" fill="#a16207" transform="translate(40 -10) scale(1.2)"/><path d="${land.c}" fill="#65a30d" transform="translate(58 -2) scale(.8)"/>`));
+  if(i===12) return wrap(planet(`<path d="${land.a}" fill="#65a30d"/><path d="${land.c}" fill="#65a30d"/><path d="${land.b}" fill="#a16207"/>`,
+    `<path d="M130 120 l14 -26 l14 26z" fill="#78716c"/><path d="M139 104 l5 -10 l5 10z" fill="#fff"/><path d="M158 126 l12 -22 l12 22z" fill="#78716c"/><path d="M165 112 l5 -9 l5 9z" fill="#fff"/>${T("🌲",110,140,16)}${T("🦌",98,184,16)}${T("🐦",190,200,14)}`));
+  return wrap(planet(`<path d="${land.a}" fill="#4d9d2a"/><path d="${land.b}" fill="#4d9d2a"/><path d="${land.c}" fill="#4d9d2a"/>`,
+    `<path d="M130 120 l14 -26 l14 26z" fill="#78716c"/><path d="M139 104 l5 -10 l5 10z" fill="#fff"/><path d="M158 126 l12 -22 l12 22z" fill="#78716c"/>${T("🌲",110,140,16)}${T("🌳",196,196,16)}${T("🦌",98,184,16)}${T("🐘",178,128,14)}${T("🐦",188,152,12)}<g class="spin2"><ellipse cx="120" cy="100" rx="26" ry="8" fill="#fff" opacity=".6"/><ellipse cx="190" cy="205" rx="30" ry="8" fill="#fff" opacity=".55"/><ellipse cx="85" cy="150" rx="18" ry="6" fill="#fff" opacity=".5"/></g>`)+
+    `${T("🌙",250,60,26)}${T("✨",52,70,18)}`);
+}
+
+let usageTimer=null, popShown=false;
+function startUsage(){
+  clearInterval(usageTimer); if(!state.me) return;
+  usageTimer=setInterval(async()=>{
+    if(document.visibilityState!=="visible") return;
+    const {data,error}=await sb.rpc("add_usage",{p_seconds:30});
+    if(error||typeof data!=="number") return;
+    const prev=state.todaySec||0; state.todaySec=data;
+    let crossed=false;
+    if(state.planet){ state.planet.today=data; if(prev<300&&data>=300){ crossed=true; state.planet.grow+=1; state.planet.miss=0; } }
+    updateRing();
+    if(crossed){ toast("Bugungi reja bajarildi! Sayyorang oʻsdi 🌱"); if(state.sub==="planet") renderPlanet(); }
+  },30000);
+}
+function ringHtml(){
+  const P=state.planet||{grow:0,path:null}, sec=state.todaySec||0, pc=Math.min(1,sec/300), R=24, C=2*Math.PI*R;
+  const st=stageOf(P.grow,P.path);
+  return `<svg viewBox="0 0 58 58" width="58" height="58" aria-hidden="true"><circle cx="29" cy="29" r="${R}" fill="var(--surface)" stroke="var(--line)" stroke-width="5"/>
+    <circle cx="29" cy="29" r="${R}" fill="none" stroke="${pc>=1?"var(--gold)":"var(--accent)"}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-pc)).toFixed(1)}" transform="rotate(-90 29 29)"/>
+    <text x="29" y="30" font-size="20" text-anchor="middle" dominant-baseline="central">${st.e}</text></svg>`;
+}
+function updateRing(){ const b=$("ringBtn"); if(b) b.innerHTML=ringHtml(); }
+
+function unreadNews(){
+  let seen=0; try{ seen=+localStorage.getItem("nb_seen_"+(state.user?state.user.id:""))||0 }catch(e){}
+  return state.news.filter(n=>Number(n.id)>seen).length;
+}
+function markNewsSeen(){
+  const m=state.news.reduce((a,n)=>Math.max(a,Number(n.id)),0);
+  try{ localStorage.setItem("nb_seen_"+(state.user?state.user.id:""),String(m)) }catch(e){}
+}
+function renderNews(){
+  const v=$("view");
+  v.innerHTML=head("Yangiliklar")+(state.news.length
+    ?`<div class="card">`+state.news.map(n=>`<div class="news-item"><b>${esc(n.title)}</b>${n.body?`<p class="muted" style="margin-top:4px">${esc(n.body)}</p>`:""}<small>${dateUz(n.created_at)}</small></div>`).join("")+`</div>`
+    :`<div class="empty">Hozircha yangilik yoʻq.</div>`);
+  $("bk").onclick=()=>go("home");
+  markNewsSeen();
+}
+function showNewsPopup(){
+  const n=state.news.find(x=>Number(x.id)>(+localStorage.getItem("nb_seen_"+(state.user?state.user.id:""))||0));
+  if(!n||popShown) return; popShown=true;
+  const el=document.createElement("div"); el.className="popup"; el.setAttribute("role","alert");
+  el.innerHTML=`<span style="font-size:26px">📩</span><div style="flex:1;min-width:0"><b>Yangi eʼlon</b><div class="muted" style="font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div></div>
+    <button class="btn small" type="button" data-p="read">Oʻqish</button><button class="back" type="button" data-p="x" aria-label="Yopish" style="width:40px;height:40px">✕</button>`;
+  document.body.appendChild(el);
+  el.onclick=(e)=>{const a=e.target.closest("[data-p]"); if(!a) return; el.remove(); if(a.dataset.p==="read") go("home","news")};
+  setTimeout(()=>{ if(el.isConnected) el.remove() },12000);
+}
+
+function habitBanner(P){
+  const left=Math.max(0,Math.ceil((300-(P.today||0))/60));
+  if((P.today||0)>=300) return `<div class="fb ok"><b>Bugungi reja bajarildi ✅</b><div class="muted" style="margin-top:4px">Sayyorang oʻsdi. Ertaga yana kel!</div></div>`;
+  if(P.miss>=3) return `<div class="fb bad"><b>Oshqozonim ogʻrib qoldi 😤</b><div class="muted" style="margin-top:4px">Bir necha kun kirmading, sayyora boshidan boshlandi. Bugun 5 daqiqa kir, yana boshlaymiz.</div></div>`;
+  if(P.miss===2) return `<div class="fb bad"><b>Ikki kun kirmading 😬</b><div class="muted" style="margin-top:4px">Sayyorang bir bosqich pastga tushdi. Bugun ham kirmasang, hammasi boshidan boshlanadi!</div></div>`;
+  if(P.miss===1) return `<div class="fb"><b>Sayyorang muzlab turibdi 🧊</b><div class="muted" style="margin-top:4px">Kecha kirmading. Bugun ${left} daqiqa oʻtirsang, hech narsa yoʻqolmaydi. Kirmasang, ertaga bir bosqich tushadi.</div></div>`;
+  return `<div class="fb"><b>Bugun yana ${left} daqiqa kerak ⏱</b><div class="muted" style="margin-top:4px">Kuniga kamida 5 daqiqa ilovada boʻlsang, sayyorang oʻsadi.</div></div>`;
+}
+async function renderPlanet(){
+  const v=$("view");
+  v.innerHTML=head("Mening sayyoram")+SPIN; $("bk").onclick=()=>go("home");
+  const [ps,pb]=await Promise.all([state.me?sb.rpc("planet_state"):Promise.resolve({data:null}), sb.rpc("planet_board")]);
+  if(state.sub!=="planet") return;
+  const P=ps.data||{grow:0,miss:0,today:0,path:null}; if(state.me){ state.planet=P; state.todaySec=P.today; }
+  const board=pb.data||[];
+  const L=stageList(P.path), idx=stageIdx(P.grow), cur=L[idx], nx=L[idx+1];
+  let h=head("Mening sayyoram");
+  if(state.me){
+    const need=P.grow>=30&&!P.path;
+    h+=`<div class="planetbox">${pArt(idx,P.path)}</div>
+      <div style="text-align:center"><h2 style="margin-top:6px">${cur.name}</h2><p class="muted">🔥 ${P.grow} kun · ${idx+1} / ${L.length}-bosqich</p></div>
+      <div class="card"><p>${cur.info}</p></div>`;
+    if(nx){
+      const rem=nx.start-P.grow, pc=Math.max(0,Math.min(100,Math.round((P.grow-cur.start)/(nx.start-cur.start)*100)));
+      h+=`<div class="card"><div class="bar"><i style="width:${pc}%"></i></div>
+        <p style="margin-top:6px">Keyingi bosqich: <b>${nx.name}</b>. Yana <b>${rem}</b> kun qoldi, davom etamiz 💪</p></div>`;
+    }else h+=`<div class="card"><p>Eng yuqori bosqichdasan, barakalla! Sayyorangni saqlab qol 🌍</p></div>`;
+    h+=habitBanner(P);
+    h+=`<div class="card" style="margin-top:12px"><div class="row"><span class="muted">Bugun</span><b>${Math.min(5,Math.floor((P.today||0)/60))} / 5 daqiqa</b></div><div class="bar" style="margin:8px 0 0"><i style="width:${Math.min(100,Math.round((P.today||0)/3))}%"></i></div></div>`;
+    if(need) h+=`<div class="card" style="border-color:var(--gold)"><h3>Yoʻlingni tanla</h3><p class="muted" style="margin:6px 0 12px">Evolyutsiya ikkiga ajraladi. Bir marta tanlanadi.</p>
+      <div class="two"><button class="btn" type="button" data-path="plant">🌿 Oʻsimlik</button><button class="btn" type="button" data-path="animal">🐾 Hayvon</button></div></div>`;
+    h+=`<h3 style="margin-top:22px">Bosqichlar</h3><div class="ladder">`+L.map((s,k)=>`<div class="st ${k<idx?"done":k===idx?"cur":""}"><i>${s.e}</i>${s.start} k.</div>`).join("")+`</div>`;
+  }
+  h+=`<h2 style="margin-top:24px">Sayyoralar reytingi</h2>`;
+  if(!board.length) h+=`<div class="empty">Hozircha hech kim yoʻq.</div>`;
+  else h+=`<div class="list">`+board.map((r,i)=>{
+    const mine=state.me&&r.full_name===state.me.full_name&&Number(r.grow)===Number(P.grow), st=stageOf(r.grow,r.path);
+    return `<div class="li ${mine?"me":""}"><div class="n">${i+1}</div><div class="grow"><b>${esc(r.full_name)}</b><small>${st.e} ${st.name}</small></div><div class="p">${r.grow} kun</div></div>`}).join("")+`</div>`;
+  v.innerHTML=h;
+  $("bk").onclick=()=>go("home");
+  v.querySelectorAll("[data-path]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true; const {error}=await sb.rpc("choose_path",{p_path:b.dataset.path});
+    if(error){toast("Saqlanmadi: "+error.message);b.disabled=false;return}
+    renderPlanet();
+  });
+}
+function upcomingRow(){
+  const flat=flatLessons();
+  const st=flat.findIndex((l,i)=>!(state.prog[l.g+"-"+l.no]||{}).passed&&isOpenL(i,flat));
+  if(st<0) return "";
+  return `<h2 style="margin-top:26px">Keyingi darslar</h2><div class="hrow">`+flat.slice(st,st+8).map(l=>{
+    const i=flat.indexOf(l), open=isOpenL(i,flat);
+    return `<button class="hcard" type="button" data-hl="${l.id}" data-ho="${open?1:0}" style="${open?"":"opacity:.55"}"><span class="e">${l.sticker}</span><b>${l.no}-dars · ${esc(l.title)}</b><small>${l.g}-sinf${open?"":" · 🔒"}</small></button>`}).join("")+`</div>`;
+}
+
 function renderHome(){
   const me=state.me;
   const first=me?esc(me.full_name.split(" ")[0]):"Ustoz";
-  let h=`<img class="brandlogo" alt="NUR Biology" src="data:image/webp;base64,${LOGO}">`;
+  const un=unreadNews();
+  let h=`<div class="hdr"><img class="hlogo" alt="NUR Biology" src="data:image/webp;base64,${LOGO}">
+    <div class="hact">${me?`<button class="ringbtn" id="ringBtn" type="button" aria-label="Mening sayyoram">${ringHtml()}</button>`:""}
+    <button class="bell" id="bellBtn" type="button" aria-label="Yangiliklar${un?`, ${un} ta yangi`:""}"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0112 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 004 0"/></svg>${un?`<i>${un}</i>`:""}</button></div></div>`;
   h+=`<div class="top"><div><p class="muted">Salom,</p><h1>${first}</h1></div>
     ${me?`<span class="badge g">${me.grade}-sinf</span>`:`<span class="badge g">Ustoz</span>`}</div>`;
   if(me){
@@ -376,12 +648,10 @@ function renderHome(){
       <div class="card stat pts"><b>${num(me.points)}</b><span>toʻplangan ball</span></div>
       <div class="card stat"><b>${rankOf()}</b><span>${state.board.length} oʻquvchi ichida</span></div>
     </div>
-    <div class="card"><h3>Darsni davom ettirish</h3>
-      <p class="muted" style="margin:6px 0 14px">Birinchi dars tez orada ochiladi.</p>
-      <button class="btn" type="button" data-go="lessons">Darslarga oʻtish</button></div>`;
+    ${contCard()}${upcomingRow()}`;
   }
   if(state.isTeacher){
-    h+=`<div class="card"><h3>Ustoz paneli</h3>
+    h+=`<div class="card" style="margin-top:16px"><h3>Ustoz paneli</h3>
       <p class="muted" style="margin:6px 0 14px">Oʻquvchilar roʻyxati, guruhlar va yangiliklar.</p>
       <button class="btn" type="button" id="goTeacher">Panelni ochish</button>
       <div class="qa" style="margin-top:10px">
@@ -391,21 +661,21 @@ function renderHome(){
       </div></div>`;
   }
   const showInst=!isStandalone() && (installEv || isIOS());
-  h+=`<div class="card ${showInst?"":"hidden"}" id="instCard"><h3>Ilovani oʻrnatish</h3>
+  h+=`<div class="card ${showInst?"":"hidden"}" id="instCard" style="margin-top:16px"><h3>Ilovani oʻrnatish</h3>
     <p class="muted" style="margin:6px 0 14px">${installEv?"Telefoningiz ekraniga qoʻying, keyin belgisini bosib kirasiz.":"Safari’da “Ulashish” tugmasini bosing, soʻng “Ekranga qoʻshish” ni tanlang."}</p>
     ${installEv?`<button class="btn" type="button" id="instBtn">Oʻrnatish</button>`:""}</div>`;
-  h+=`<h2 style="margin-top:28px">Yangiliklar</h2>`;
-  if(!state.news.length) h+=`<div class="empty">Hozircha yangilik yoʻq.</div>`;
-  else h+=`<div class="card">`+state.news.map(n=>`<div class="news-item"><b>${esc(n.title)}</b>
-      ${n.body?`<p class="muted" style="margin-top:4px">${esc(n.body)}</p>`:""}
-      <small>${dateUz(n.created_at)}</small></div>`).join("")+`</div>`;
   h+=logoutBlock();
   $("view").innerHTML=h;
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
   const gt=$("goTeacher"); if(gt) gt.onclick=()=>go("home","teacher");
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openLessonPage(b.dataset.open));
+  document.querySelectorAll("[data-hl]").forEach(b=>b.onclick=()=>{ if(b.dataset.ho==="1") openLessonPage(b.dataset.hl); else toast("Avval oldingi darslarni oʻt 🔒") });
+  const rb=$("ringBtn"); if(rb) rb.onclick=()=>go("home","planet");
+  $("bellBtn").onclick=()=>go("home","news");
   bindUploads();
   const ib=$("instBtn"); if(ib) ib.onclick=async()=>{installEv.prompt();await installEv.userChoice;installEv=null;$("instCard").classList.add("hidden")};
   bindLogout();
+  showNewsPopup();
 }
 
 /* ================= PDF yordamchilari ================= */
@@ -647,7 +917,9 @@ async function renderTests(){
   const c=state.ctx, v=$("view");
   if(c.view==="new") return renderSetForm();
   const grade=c.grade||(state.me?state.me.grade:6);
-  const {data,error}=await sb.from("question_sets").select("*").eq("grade",grade).order("created_at",{ascending:false});
+  let qy=sb.from("question_sets").select("*").eq("grade",grade).order("created_at",{ascending:false});
+  if(!state.isTeacher) qy=qy.neq("kind","placement");
+  const {data,error}=await qy;
   let h=`<h1>Testlar</h1>`+gradeChips(grade);
   if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button">+ Test yuklash (PDF)</button>`;
   h+=`<div id="sets"></div>`;
@@ -666,7 +938,7 @@ async function renderTests(){
   if(error){msgErr(box,error);return}
   const sets=data||[];
   if(!sets.length){box.innerHTML=`<div class="empty">Bu sinfda hali test yoʻq.</div>`;return}
-  box.innerHTML=sets.map(s=>`<div class="tile" style="cursor:default"><span class="ic">✅</span><span class="grow"><b>${esc(s.title)}</b>
+  box.innerHTML=sets.map(s=>`<div class="tile" style="cursor:default"><span class="ic">✅</span><span class="grow"><b>${esc(s.title)}${s.kind==="placement"?" 🧭":""}</b>
     <small>${s.qcount} ta savol${s.per_try>0?`, har safar ${s.per_try} tasi`:""}</small></span>
     <button class="btn small" data-s="${s.id}" type="button">Boshlash</button>
     ${state.isTeacher?`<button class="btn danger small" data-x="${s.id}" type="button">Oʻchirish</button>`:""}</div>`).join("");
@@ -688,6 +960,7 @@ function renderSetForm(){
     <label for="stp">Har safar nechta savol chiqsin? (0 = hammasi)</label><input id="stp" type="number" inputmode="numeric" value="0" min="0">
     <label for="stf">PDF fayl</label><input id="stf" type="file" accept="application/pdf">
     <label for="stx">Yoki matnni shu yerga qoʻying</label><textarea id="stx" placeholder="1. Savol matni&#10;A) variant&#10;B) variant&#10;C) variant&#10;D) variant"></textarea>
+    <label style="display:flex;align-items:center;gap:12px;color:var(--text)"><input type="checkbox" id="stpl" style="width:26px;height:26px;min-height:0;flex:none"> Bu daraja aniqlash testi (15 savol, roʻyxatdan oʻtgach chiqadi)</label>
     <div class="err" id="sterr"></div>
     <button class="btn" id="stgo" type="button" style="margin-top:6px">Oʻqish</button></div>
     <p class="hint">Savollar “1.” yoki “1)” bilan, variantlar “A)” “B)” bilan boshlansin. PDF dagi matn belgilab nusxa olinadigan boʻlishi kerak (skan rasm emas). Keyingi oynada hammasini tekshirasiz.</p>`;
@@ -702,7 +975,7 @@ function renderSetForm(){
       const text=f?await pdfText(await f.arrayBuffer()):tx;
       const items=parseQuestions(text);
       if(!items.length){err.textContent="Savol topilmadi. Format: “1. Savol”, “A) variant”. Matnni nusxalab, pastdagi maydonga qoʻyib koʻring.";return}
-      state.draft={title,grade:+$("stg").value,per_try:Math.max(0,parseInt($("stp").value)||0),items,onlyMiss:false};
+      const pl=$("stpl").checked; state.draft={title,grade:+$("stg").value,per_try:pl?15:Math.max(0,parseInt($("stp").value)||0),items,onlyMiss:false,kind:pl?"placement":"topic"};
       renderReview();
     }catch(e){err.textContent="Oʻqib boʻlmadi: "+(e&&e.message||e)}
     finally{btn.disabled=false;btn.textContent="Oʻqish"}
@@ -757,7 +1030,7 @@ async function saveSet(){
     d.onlyMiss=true; renderReview(); return;
   }
   const btn=$("saveSet"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-  const {data:set,error}=await sb.from("question_sets").insert({title:d.title,grade:d.grade,per_try:d.per_try,qcount:clean.length}).select().single();
+  const {data:set,error}=await sb.from("question_sets").insert({title:d.title,grade:d.grade,per_try:d.per_try,qcount:clean.length,kind:d.kind||"topic"}).select().single();
   if(error){toast("Saqlanmadi: "+error.message);btn.disabled=false;btn.textContent="Saqlash";return}
   for(let i=0;i<clean.length;i+=100){
     const rows=clean.slice(i,i+100).map(x=>({set_id:set.id,q:x.q,opts:x.opts,ans:x.ans}));
@@ -773,7 +1046,7 @@ async function startTest(set){
   $("view").innerHTML=SPIN;
   const {data,error}=await sb.rpc("get_questions",{p_set:set.id});
   if(error||!data||!data.length){ $("view").innerHTML=head(set.title)+`<div class="empty">Savollarni yuklab boʻlmadi.<br><small>${esc(error&&error.message||"")}</small></div>`; $("bk").onclick=()=>go("tests",null,{grade:set.grade}); return }
-  let qs=shuffle(data); if(set.per_try>0) qs=qs.slice(0,set.per_try);
+  let qs=shuffle(data); if(set.per_try>0) qs=qs.slice(0,set.per_try); if(set.kind==="placement") qs=qs.slice(0,15);
   qs=qs.map(q=>{
     const o=q.opts.map((t,i)=>({t,i}));
     return {id:q.id,q:q.q,view:o.some(x=>STICKY.test(x.t))?o:shuffle(o)};
@@ -790,7 +1063,7 @@ function drawQ(){
     <h2 style="margin-top:6px;font-size:20px;line-height:1.4">${esc(q.q)}</h2>
     <div id="opts">${q.view.map((o,k)=>`<button class="opt" type="button" data-k="${k}"><span class="l">${LET[k]}</span><span>${esc(o.t)}</span></button>`).join("")}</div>
     <div id="fb"></div>`;
-  $("bk").onclick=()=>{ if(r.i>0&&!confirm("Testni toʻxtatasizmi?"))return; state.run=null; go("tests",null,{grade:r.set.grade}) };
+  $("bk").onclick=()=>{ if(r.i>0&&!confirm("Testni toʻxtatasizmi?"))return; state.run=null; go(r.set.kind==="placement"?"home":"tests",null,{grade:r.set.grade}) };
   v.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answerQ(+b.dataset.k));
 }
 async function answerQ(k){
@@ -806,7 +1079,7 @@ async function answerQ(k){
     <button class="btn" id="nxt" type="button" style="margin-top:14px">${last?"Natijani koʻrish":"Keyingisi"}</button>`;
   $("nxt").onclick=()=>{r.i++;r.lock=false;drawQ()};
 }
-function drawResult(){
+function drawResult(){ if(state.run&&state.run.set.kind==="placement") return placementResult();
   const r=state.run, v=$("view"), n=r.qs.length, pc=Math.round(r.ok/n*100);
   v.innerHTML=head("Natija")+`<div class="card" style="text-align:center"><div class="big">${r.ok} / ${n}</div>
     <p class="muted" style="margin-top:6px">${pc}% toʻgʻri</p></div>
@@ -816,6 +1089,117 @@ function drawResult(){
       <p style="color:var(--accent)">Toʻgʻrisi: ${esc(w.right)}</p></div>`).join(""):"");
   $("bk").onclick=$("toList").onclick=()=>{state.run=null;go("tests",null,{grade:r.set.grade})};
   $("again").onclick=()=>startTest(r.set);
+}
+
+/* ================= DARSLAR ================= */
+const CAT={"6":[{"id":"6-kirish","no":1,"title":"Kirish","topics":"1, 2, 3-§","sticker":"🔬"},{"id":"6-02","no":2,"title":"Hujayra va toʻqimalar","topics":"4, 5, 6-§","sticker":"🧫"},{"id":"6-03","no":3,"title":"Ildiz","topics":"7, 8, 9-§","sticker":"🥕"},{"id":"6-04","no":4,"title":"Novda, poya, kurtak","topics":"10–14-§","sticker":"🌿"},{"id":"6-05","no":5,"title":"Barg","topics":"15–19-§","sticker":"🍃"},{"id":"6-06","no":6,"title":"Gul va toʻpgullar","topics":"20, 21, 22-§","sticker":"🌸"},{"id":"6-07","no":7,"title":"Meva va urugʻ","topics":"23, 24-§","sticker":"🍑"},{"id":"6-08","no":8,"title":"Oziqlanish va fotosintez","topics":"25, 26, 27-§","sticker":"☀️"},{"id":"6-09","no":9,"title":"Nafas olish, suv bugʻlatish, kuz","topics":"28, 29, 30-§","sticker":"🍂"},{"id":"6-10","no":10,"title":"Koʻpayish, changlanish, urugʻlanish","topics":"31, 32, 33-§","sticker":"🐝"},{"id":"6-11","no":11,"title":"Tarqalish, unish, ekologik omillar","topics":"34–37-§","sticker":"🌍"},{"id":"6-12","no":12,"title":"Sistematika va suvoʻtlar","topics":"38–41-§","sticker":"🌊"},{"id":"6-13","no":13,"title":"Yoʻsin, qirqboʻgʻim, qirqquloq","topics":"42, 43, 44-§","sticker":"🌿"},{"id":"6-14","no":14,"title":"Ochiq va yopiq urugʻlilar","topics":"45, 46-§","sticker":"🌲"},{"id":"6-15","no":15,"title":"Raʼnodosh, karamdosh, shoʻradosh","topics":"47, 48, 49-§","sticker":"🌹"},{"id":"6-16","no":16,"title":"Gulxayri, burchoq, ituzumdoshlar","topics":"50, 51, 52-§","sticker":"🫘"},{"id":"6-17","no":17,"title":"Tok, qovoq, qoqioʻtdoshlar","topics":"53, 54, 55-§","sticker":"🌻"},{"id":"6-18","no":18,"title":"Bir urugʻpallalilar va rivojlanish","topics":"56–59-§","sticker":"🌷"}],"7":[{"id":"7-01","no":1,"title":"Hayvonlar haqida umumiy maʼlumot","topics":"1, 2-§","sticker":"🦁"},{"id":"7-02","no":2,"title":"Bir hujayralilar","topics":"3, 4, 5-§","sticker":"🦠"},{"id":"7-03","no":3,"title":"Boʻshliqichlilar","topics":"6, 7-§","sticker":"🌊"},{"id":"7-04","no":4,"title":"Yassi va toʻgarak chuvalchanglar","topics":"8–11-§","sticker":"🪱"},{"id":"7-05","no":5,"title":"Halqali chuvalchanglar","topics":"12, 13-§","sticker":"🌱"},{"id":"7-06","no":6,"title":"Mollyuskalar","topics":"14, 15-§","sticker":"🐚"},{"id":"7-07","no":7,"title":"Qisqichbaqasimonlar va oʻrgimchaksimonlar","topics":"16–19-§","sticker":"🦞"},{"id":"7-08","no":8,"title":"Qoʻngʻiz, hasharotlar koʻpayishi","topics":"20, 21, 22-§","sticker":"🪲"},{"id":"7-09","no":9,"title":"Chala oʻzgarish, tangachaqanotlilar, asalarilar","topics":"23, 24, 25-§","sticker":"🐝"},{"id":"7-10","no":10,"title":"Ikki qanotlilar, hasharotlar ahamiyati","topics":"26, 27-§","sticker":"🦟"},{"id":"7-11","no":11,"title":"Lansetnik va baliqlar tuzilishi","topics":"28–31-§","sticker":"🐟"},{"id":"7-12","no":12,"title":"Baliqlar: koʻpayish va xilma-xillik","topics":"32, 33, 34-§","sticker":"🦈"},{"id":"7-13","no":13,"title":"Suvda va quruqlikda yashovchilar, sudralib yuruvchilar","topics":"35–40-§","sticker":"🐢"},{"id":"7-14","no":14,"title":"Qushlar: kaptar tuzilishi, koʻpayishi","topics":"41–44-§","sticker":"🕊️"},{"id":"7-15","no":15,"title":"Qushlar: moslashish, voha, choʻl va suv qushlari","topics":"45–47-§","sticker":"🦆"},{"id":"7-16","no":16,"title":"Yirtqich qushlar, parrandachilik","topics":"48, 49-§","sticker":"🦅"},{"id":"7-17","no":17,"title":"It tuzilishi, sutemizuvchilar koʻpayishi va xilma-xilligi","topics":"50–53-§","sticker":"🐕"},{"id":"7-18","no":18,"title":"Qoʻlqanotlilar, kemiruvchilar, yirtqichlar, dengiz sutemizuvchilari","topics":"54, 55, 56-§","sticker":"🦇"},{"id":"7-19","no":19,"title":"Tuyoqlilar, primatlar, chorva mollari","topics":"57, 58, 59-§","sticker":"🐎"}],"8":[{"id":"8-01","no":1,"title":"Kirish: Odam va uning salomatligi","topics":"1-§","sticker":"🩺"},{"id":"8-02","no":2,"title":"Odam organizmi haqida umumiy maʼlumot","topics":"2–4-§","sticker":"🔬"},{"id":"8-03","no":3,"title":"Organizm funksiyasining boshqarilishi, sekretsiya bezlari","topics":"5–8-§","sticker":"🎛️"},{"id":"8-04","no":4,"title":"Tayanch-harakatlanish sistemasi","topics":"9–13-§","sticker":"🦴"},{"id":"8-05","no":5,"title":"Qon","topics":"14–17-§","sticker":"🩸"},{"id":"8-06","no":6,"title":"Qon aylanish sistemasi","topics":"18–22-§","sticker":"❤️"},{"id":"8-07","no":7,"title":"Nafas olish sistemasi","topics":"23–25-§","sticker":"🫁"},{"id":"8-08","no":8,"title":"Ovqat hazm qilish sistemasi","topics":"26–29-§","sticker":"🍽️"},{"id":"8-09","no":9,"title":"Moddalar va energiya almashinuvi","topics":"30–33-§","sticker":"⚡"},{"id":"8-10","no":10,"title":"Teri va siydik ayirish sistemasi","topics":"34–38-§","sticker":"💧"},{"id":"8-11","no":11,"title":"Nerv sistemasi (1-qism): tuzilishi, funksiyasi, orqa miya","topics":"39–41-§","sticker":"🧠"},{"id":"8-12","no":12,"title":"Nerv sistemasi (2-qism): bosh miya, kasalliklar","topics":"42–44-§","sticker":"🧠"},{"id":"8-13","no":13,"title":"Oliy nerv faoliyati (1-qism): reflekslar, tafakkur, hissiyot","topics":"45–48-§","sticker":"🔔"},{"id":"8-14","no":14,"title":"Oliy nerv faoliyati (2-qism): xotira, uyqu, nerv faoliyati tiplari","topics":"49–51-§","sticker":"😴"},{"id":"8-15","no":15,"title":"Sezgi organlari","topics":"52–57-§","sticker":"👁️"},{"id":"8-16","no":16,"title":"Koʻpayish va rivojlanish, odamning biologik va ijtimoiy tabiati","topics":"58–61-§","sticker":"👶"}]};
+const SUBJ={"6": "Botanika", "7": "Zoologiya", "8": "Odam va uning salomatligi"};
+function flatLessons(){const o=[];Object.keys(CAT).map(Number).sort((a,b)=>a-b).forEach(g=>CAT[g].forEach(l=>o.push({...l,g})));return o}
+function progOf(attempts){
+  const p={};
+  (attempts||[]).forEach(a=>{
+    const k=a.grade+"-"+a.lesson, x=p[k]||(p[k]={tries:0,passed:false,best:0,pts:0});
+    x.tries++; if(a.passed){x.passed=true;x.best=Math.max(x.best,15-Number(a.mistakes||0));x.pts+=Number(a.points||0)}
+  });
+  return p;
+}
+function isOpenL(i,flat){
+  if(state.isTeacher) return true;
+  const acc=state.me?state.me.access:"seq", l=flat[i];
+  if(acc==="all") return true;
+  if(acc==="mid" && l.g<=8) return true;
+  if(i===0) return true;
+  const pv=flat[i-1];
+  if(acc==="mid" && l.g>=9 && pv.g<=8) return true;
+  return !!(state.prog[pv.g+"-"+pv.no]||{}).passed;
+}
+function nextLesson(){
+  const flat=flatLessons();
+  for(let i=0;i<flat.length;i++){
+    const l=flat[i];
+    if(!(state.prog[l.g+"-"+l.no]||{}).passed && isOpenL(i,flat)) return l;
+  }
+  return null;
+}
+function openLessonPage(id){ location.href="dars-"+id.split("-")[0]+".html#"+id; }
+function contCard(){
+  const n=nextLesson();
+  if(!n) return `<div class="card"><h3>Darsni davom ettirish</h3>
+      <p class="muted" style="margin:6px 0 14px">Hozirgi barcha darslar oʻtildi. Yangi darslar tez orada qoʻshiladi.</p>
+      <button class="btn" type="button" data-go="lessons">Darslar</button></div>`;
+  const started=Object.keys(state.prog).length>0;
+  return `<div class="card"><h3>Darsni davom ettirish</h3>
+      <p class="muted" style="margin:6px 0 14px">${n.g}-sinf · ${n.no}-dars · ${esc(n.title)}</p>
+      <button class="btn" type="button" data-open="${n.id}">${started?"Davom etish":"Boshlash"}</button>
+      <button class="btn ghost" type="button" data-go="lessons" style="margin-top:10px">Barcha darslar</button></div>`;
+}
+function renderLessons(){
+  const v=$("view"), flat=flatLessons(), nx=nextLesson();
+  const grade=state.ctx.grade||(nx?nx.g:(state.me&&CAT[state.me.grade]?state.me.grade:6));
+  const list=flat.map((l,i)=>({l,i})).filter(o=>o.l.g===grade);
+  const done=list.filter(o=>(state.prog[o.l.g+"-"+o.l.no]||{}).passed).length;
+  let h=`<h1>Darslar</h1>`+gradeChips(grade);
+  if(!list.length){
+    h+=`<div class="empty">${grade}-sinf darslari tez orada qoʻshiladi.</div>`;
+  }else{
+    h+=`<p class="muted" style="margin-top:4px">${SUBJ[grade]||""} · ${done} / ${list.length} dars oʻtilgan</p><div class="list">`;
+    h+=list.map(({l,i})=>{
+      const p=state.prog[l.g+"-"+l.no]||{tries:0,passed:false}, open=isOpenL(i,flat), closed=!p.passed&&p.tries>=10;
+      const st=p.passed?`✅ Oʻtilgan · ${p.best}/15 · ⭐ ${num(p.pts)}`
+        :closed?`🔒 Test yopilgan (10 urinish)`
+        :open?(p.tries?`▶ Davom etish · ${p.tries} urinish`:`▶ Boshlash`)
+        :`🔒 Oldingi darsni oʻting`;
+      return `<button class="tile" type="button" data-l="${l.id}" data-open="${open?1:0}" style="${open?"":"opacity:.55"}">
+        <span class="ic">${l.sticker}</span><span class="grow"><b>${l.no}-dars · ${esc(l.title)}</b><small>${esc(l.topics)}</small><small style="display:block;margin-top:2px;color:${p.passed?"var(--accent)":"var(--muted)"}">${st}</small></span></button>`;
+    }).join("")+`</div>`;
+  }
+  h+=logoutBlock();
+  v.innerHTML=h;
+  v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("lessons",null,{grade:+b.dataset.g}));
+  v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.open!=="1"){toast("Avval oldingi darsni oʻting");return}
+    openLessonPage(b.dataset.l);
+  });
+  bindLogout();
+}
+
+/* ---------- daraja aniqlash testi ---------- */
+async function maybePlacement(){
+  if(!state.me||state.me.placed) return false;
+  const {data}=await sb.from("question_sets").select("*").eq("kind","placement").order("created_at",{ascending:false}).limit(1);
+  const set=data&&data[0]; if(!set) return false;
+  $("nav").classList.add("hidden");
+  $("view").innerHTML=`<h1>Daraja aniqlash</h1>
+    <div class="card"><p>Sizga mos dars darajasini aniqlash uchun <b>15 ta savol</b>ga javob bering.</p>
+    <p class="muted" style="margin-top:8px">Natijaga qarab darslaringiz ochiladi. Bilganingizcha javob bering, hech kim urishmaydi 😄</p></div>
+    <button class="btn" id="plGo" type="button" style="margin-top:16px">Boshlash</button>
+    <button class="btn ghost" id="plSkip" type="button" style="margin-top:10px">Keyinroq</button>`;
+  $("plGo").onclick=()=>startTest(set);
+  $("plSkip").onclick=()=>go("home");
+  return true;
+}
+async function placementResult(){
+  const r=state.run, v=$("view"); v.innerHTML=SPIN;
+  let acc=null, err="";
+  if(state.me){
+    const {data,error}=await sb.rpc("submit_placement",{p_correct:r.ok});
+    if(error) err=error.message; else acc=data;
+  }else acc=r.ok>10?"all":r.ok>=5?"mid":"seq";
+  if(err){
+    v.innerHTML=head("Daraja aniqlash")+`<div class="empty">Natija saqlanmadi.<br><small>${esc(err)}</small></div>
+      <button class="btn" id="plRetry" type="button" style="margin-top:14px">Qayta yuborish</button>`;
+    $("bk").onclick=()=>{state.run=null;go("home")};
+    $("plRetry").onclick=placementResult; return;
+  }
+  const n=r.qs.length, ok=r.ok; state.run=null;
+  const msg={all:"Zoʻr natija! Hamma darslar ochiq. Xohlagan darsdan boshlang 🔥",
+    mid:"Yaxshi! 6, 7 va 8-sinf darslari ochiq. Keyingilarini ketma-ket ochasiz 💪",
+    seq:"Boshidan boshlaymiz. Har bir darsni oʻtganingizda keyingisi ochiladi 🌱"}[acc]||"";
+  v.innerHTML=`<div class="center" style="text-align:center;padding-top:26px"><div class="big">${ok} / ${n}</div>
+    <p class="muted" style="margin-top:6px">daraja aniqlash natijasi</p></div>
+    <div class="card" style="margin-top:18px"><p>${msg}</p></div>
+    <button class="btn" id="plDone" type="button" style="margin-top:16px">Darslarga oʻtish</button>`;
+  $("plDone").onclick=()=>go("lessons");
 }
 
 /* ================= MASHQLAR (rasmli) ================= */
@@ -1059,6 +1443,7 @@ async function drawStudents(showLoader){
   const {data,error}=await sb.from("students").select("*").order("created_at",{ascending:false});
   if(error){body.innerHTML=`<div class="empty">Roʻyxatni yuklab boʻlmadi.</div>`;return}
   state.students=data||[];
+  let us={}; try{ const u=await sb.rpc("usage_summary"); (u.data||[]).forEach(r=>us[r.student_id]=r) }catch(e){}
   const g={A:0,B:0,C:0,none:0};
   state.students.forEach(s=>{g[s.grp||"none"]++});
   let h=`<div class="card"><div class="row"><div><b style="font-size:26px">${state.students.length}</b>
@@ -1075,6 +1460,7 @@ async function drawStudents(showLoader){
         ${["A","B","C"].map(x=>`<option value="${x}" ${s.grp===x?"selected":""}>${x} guruh</option>`).join("")}
       </select>
       <span class="muted" style="font-size:13px;margin-left:8px">${dateUz(s.created_at)}</span>
+      <span class="usg">⏱ Bugun ${Math.round(((us[s.id]||{}).today_sec||0)/60)} daq · jami ${Math.round(((us[s.id]||{}).total_sec||0)/60)} daq · 🔥 ${(us[s.id]||{}).grow||0} kun</span>
     </div>`).join("")+`</div>`;
   // tanlash oynasi ochiq boʻlsa, avtoyangilash xalaqit bermasin
   if(!showLoader && document.activeElement && document.activeElement.tagName==="SELECT") return;
