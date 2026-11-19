@@ -939,7 +939,7 @@ async function renderTests(){
   const sets=data||[];
   if(!sets.length){box.innerHTML=`<div class="empty">Bu sinfda hali test yoʻq.</div>`;return}
   box.innerHTML=sets.map(s=>`<div class="tile" style="cursor:default"><span class="ic">✅</span><span class="grow"><b>${esc(s.title)}${s.kind==="placement"?" 🧭":""}</b>
-    <small>${s.qcount} ta savol${s.per_try>0?`, har safar ${s.per_try} tasi`:""}</small></span>
+    <small>${s.qcount} ta savol${s.per_try>0?`, har safar ${s.per_try} tasi`:""}${s.time_limit>0?` · ⏱ ${s.time_limit} daqiqa`:""}</small></span>
     <button class="btn small" data-s="${s.id}" type="button">Boshlash</button>
     ${state.isTeacher?`<button class="btn danger small" data-x="${s.id}" type="button">Oʻchirish</button>`:""}</div>`).join("");
   box.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>startTest(sets.find(x=>String(x.id)===b.dataset.s)));
@@ -958,6 +958,7 @@ function renderSetForm(){
     <label style="margin-top:0" for="stt">Test nomi</label><input id="stt" placeholder="Masalan: 1–6-mavzular">
     <label for="stg">Sinf</label><select id="stg">${gradeOpts(g0)}</select>
     <label for="stp">Har safar nechta savol chiqsin? (0 = hammasi)</label><input id="stp" type="number" inputmode="numeric" value="0" min="0">
+    <label for="stm">Vaqt (daqiqa, 0 = cheksiz)</label><input id="stm" type="number" inputmode="numeric" value="0" min="0">
     <label for="stf">PDF fayl</label><input id="stf" type="file" accept="application/pdf">
     <label for="stx">Yoki matnni shu yerga qoʻying</label><textarea id="stx" placeholder="1. Savol matni&#10;A) variant&#10;B) variant&#10;C) variant&#10;D) variant"></textarea>
     <label style="display:flex;align-items:center;gap:12px;color:var(--text)"><input type="checkbox" id="stpl" style="width:26px;height:26px;min-height:0;flex:none"> Bu daraja aniqlash testi (15 savol, roʻyxatdan oʻtgach chiqadi)</label>
@@ -972,10 +973,10 @@ function renderSetForm(){
     if(!f&&!tx){err.textContent="PDF tanlang yoki matn qoʻying.";return}
     const btn=$("stgo"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
     try{
-      const text=f?await pdfText(await f.arrayBuffer()):tx;
+      const text=tx?tx:await pdfText(await f.arrayBuffer());
       const items=parseQuestions(text);
       if(!items.length){err.textContent="Savol topilmadi. Format: “1. Savol”, “A) variant”. Matnni nusxalab, pastdagi maydonga qoʻyib koʻring.";return}
-      const pl=$("stpl").checked; state.draft={title,grade:+$("stg").value,per_try:pl?15:Math.max(0,parseInt($("stp").value)||0),items,onlyMiss:false,kind:pl?"placement":"topic"};
+      const pl=$("stpl").checked; state.draft={title,grade:+$("stg").value,per_try:pl?15:Math.max(0,parseInt($("stp").value)||0),time_limit:pl?0:Math.max(0,parseInt($("stm").value)||0),items,onlyMiss:false,kind:pl?"placement":"topic"};
       renderReview();
     }catch(e){err.textContent="Oʻqib boʻlmadi: "+(e&&e.message||e)}
     finally{btn.disabled=false;btn.textContent="Oʻqish"}
@@ -1030,7 +1031,7 @@ async function saveSet(){
     d.onlyMiss=true; renderReview(); return;
   }
   const btn=$("saveSet"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-  const {data:set,error}=await sb.from("question_sets").insert({title:d.title,grade:d.grade,per_try:d.per_try,qcount:clean.length,kind:d.kind||"topic"}).select().single();
+  const {data:set,error}=await sb.from("question_sets").insert({title:d.title,grade:d.grade,per_try:d.per_try,qcount:clean.length,kind:d.kind||"topic",time_limit:d.time_limit||0}).select().single();
   if(error){toast("Saqlanmadi: "+error.message);btn.disabled=false;btn.textContent="Saqlash";return}
   for(let i=0;i<clean.length;i+=100){
     const rows=clean.slice(i,i+100).map(x=>({set_id:set.id,q:x.q,opts:x.opts,ans:x.ans}));
@@ -1043,6 +1044,7 @@ async function saveSet(){
 /* ---------- oʻquvchi: testni ishlash ---------- */
 const STICKY=/yuqoridagi|barcha|hammasi|hech biri|va\s+[A-F]\b|[A-F]\s*va\s*[A-F]/i;
 async function startTest(set){
+  if(set.time_limit>0) return startTimed(set);
   $("view").innerHTML=SPIN;
   const {data,error}=await sb.rpc("get_questions",{p_set:set.id});
   if(error||!data||!data.length){ $("view").innerHTML=head(set.title)+`<div class="empty">Savollarni yuklab boʻlmadi.<br><small>${esc(error&&error.message||"")}</small></div>`; $("bk").onclick=()=>go("tests",null,{grade:set.grade}); return }
@@ -1058,18 +1060,26 @@ function drawQ(){
   const r=state.run, v=$("view"); if(!r) return;
   if(r.i>=r.qs.length) return drawResult();
   const q=r.qs[r.i];
-  v.innerHTML=head(r.set.title)+`<div class="bar"><i style="width:${Math.round(r.i/r.qs.length*100)}%"></i></div>
-    <p class="muted">${r.i+1} / ${r.qs.length}</p>
+  const pos=r.timed?r.done+r.i+1:r.i+1, tot=r.timed?r.total:r.qs.length;
+  v.innerHTML=head(r.set.title)+`<div class="bar"><i style="width:${Math.round((pos-1)/tot*100)}%"></i></div>
+    <p class="muted">${pos} / ${tot}${r.timed?` <span id="tmr" style="float:right;font-weight:800;color:var(--accent)">⏱</span>`:""}</p>
     <h2 style="margin-top:6px;font-size:20px;line-height:1.4">${esc(q.q)}</h2>
     <div id="opts">${q.view.map((o,k)=>`<button class="opt" type="button" data-k="${k}"><span class="l">${LET[k]}</span><span>${esc(o.t)}</span></button>`).join("")}</div>
     <div id="fb"></div>`;
-  $("bk").onclick=()=>{ if(r.i>0&&!confirm("Testni toʻxtatasizmi?"))return; state.run=null; go(r.set.kind==="placement"?"home":"tests",null,{grade:r.set.grade}) };
+  $("bk").onclick=()=>{ if(r.timed){ if(!confirm("Chiqib ketsangiz ham vaqt ishlayveradi. Chiqasizmi?"))return; clearInterval(state.qt); state.run=null; go("tests",null,{grade:r.set.grade}); return }
+    if(r.i>0&&!confirm("Testni toʻxtatasizmi?"))return; state.run=null; go(r.set.kind==="placement"?"home":"tests",null,{grade:r.set.grade}) };
   v.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answerQ(+b.dataset.k));
+  if(r.timed) startTick();
 }
 async function answerQ(k){
   const r=state.run, q=r.qs[r.i]; if(r.lock) return; r.lock=true;
   const {data:right,error}=await sb.rpc("check_answer",{p_q:q.id});
   if(error){r.lock=false;toast("Tekshirib boʻlmadi, qayta bosing");return}
+  if(r.timed){
+    const {data:ra,error:er}=await sb.rpc("record_answer",{p_run:r.runId,p_q:String(q.id),p_choice:q.view[k].i});
+    if(er){r.lock=false;toast("Saqlanmadi, qayta bosing");return}
+    if(ra&&ra.expired){finishTimed(true);return}
+  }
   const rk=q.view.findIndex(o=>o.i===right), good=(k===rk);
   const btns=$("opts").querySelectorAll(".opt"); btns.forEach(b=>b.disabled=true);
   btns[rk].classList.add("ok"); if(!good) btns[k].classList.add("bad");
@@ -1079,7 +1089,7 @@ async function answerQ(k){
     <button class="btn" id="nxt" type="button" style="margin-top:14px">${last?"Natijani koʻrish":"Keyingisi"}</button>`;
   $("nxt").onclick=()=>{r.i++;r.lock=false;drawQ()};
 }
-function drawResult(){ if(state.run&&state.run.set.kind==="placement") return placementResult();
+function drawResult(){ if(state.run&&state.run.timed) return finishTimed(false); if(state.run&&state.run.set.kind==="placement") return placementResult();
   const r=state.run, v=$("view"), n=r.qs.length, pc=Math.round(r.ok/n*100);
   v.innerHTML=head("Natija")+`<div class="card" style="text-align:center"><div class="big">${r.ok} / ${n}</div>
     <p class="muted" style="margin-top:6px">${pc}% toʻgʻri</p></div>
@@ -1089,6 +1099,76 @@ function drawResult(){ if(state.run&&state.run.set.kind==="placement") return pl
       <p style="color:var(--accent)">Toʻgʻrisi: ${esc(w.right)}</p></div>`).join(""):"");
   $("bk").onclick=$("toList").onclick=()=>{state.run=null;go("tests",null,{grade:r.set.grade})};
   $("again").onclick=()=>startTest(r.set);
+}
+
+/* ---------- vaqtli test (taymer + natijalar saqlanadi) ---------- */
+const mmss=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+function startTick(){
+  clearInterval(state.qt);
+  const tick=()=>{
+    const r=state.run, el=$("tmr");
+    if(!r||!r.timed||!el){clearInterval(state.qt);return}
+    const s=Math.max(0,Math.ceil((r.end-Date.now())/1000));
+    el.textContent="⏱ "+mmss(s); el.style.color=s<=300?"var(--danger)":"var(--accent)";
+    if(s<=0){clearInterval(state.qt);finishTimed(true)}
+  };
+  tick(); state.qt=setInterval(tick,1000);
+}
+async function startTimed(set){
+  const v=$("view"); v.innerHTML=SPIN;
+  const {data,error}=await sb.rpc("my_runs",{p_set:String(set.id)});
+  if(error){
+    v.innerHTML=head(set.title)+`<div class="empty">Yuklab boʻlmadi.<br><small>${esc(error.message)}</small><br><small>Yangi SQL kodni Supabase’da ishga tushirdingizmi?</small></div>`;
+    $("bk").onclick=()=>go("tests",null,{grade:set.grade}); return;
+  }
+  const runs=data||[], open=runs.find(x=>!x.finished), done=runs.filter(x=>x.finished);
+  const next=(runs.length?Math.max(...runs.map(x=>x.attempt_no)):0)+(open?0:1);
+  v.innerHTML=head(set.title)+`<div class="card">
+    <p style="font-size:20px;font-weight:800;margin:0">⏱ ${set.time_limit} daqiqa</p>
+    <p class="muted" style="margin:6px 0 0">${set.qcount} ta savol. Boshlaganingizdan keyin vaqt toʻxtamaydi: testdan chiqib ketsangiz ham taymer ishlayveradi.</p>
+    <button class="btn" id="goT" type="button" style="margin-top:16px">${open?`Davom ettirish (${next}-urinish, qolgan ${mmss(open.left_sec)})`:`Boshlash (${next}-urinish)`}</button></div>`
+    +(done.length?`<h3 style="margin-top:24px">Oldingi urinishlar</h3><div class="list">`+done.map(x=>`<div class="li"><div class="n">${x.attempt_no}</div>
+      <div class="grow"><b>${x.attempt_no}-urinish</b><small>${mmss(x.secs)} daqiqa</small></div><div class="p">${x.correct} / ${x.total}</div></div>`).join("")+`</div>`:"");
+  $("bk").onclick=()=>go("tests",null,{grade:set.grade});
+  $("goT").onclick=()=>beginTimed(set);
+}
+async function beginTimed(set){
+  $("view").innerHTML=SPIN;
+  const {data:r,error}=await sb.rpc("start_run",{p_set:String(set.id)});
+  if(error||!r){toast("Boshlab boʻlmadi: "+(error&&error.message||""));return startTimed(set)}
+  const {data,error:e2}=await sb.rpc("get_questions",{p_set:set.id});
+  if(e2||!data||!data.length){toast("Savollarni yuklab boʻlmadi");return startTimed(set)}
+  const answered=new Set((r.answered||[]).map(String));
+  const qs=shuffle(data).filter(q=>!answered.has(String(q.id))).map(q=>{
+    const o=q.opts.map((t,i)=>({t,i}));
+    return {id:q.id,q:q.q,view:o.some(x=>STICKY.test(x.t))?o:shuffle(o)};
+  });
+  state.run={set,qs,i:0,ok:0,wrong:[],timed:true,runId:r.run_id,attempt:r.attempt_no,total:data.length,done:answered.size,end:Date.now()+r.left_sec*1000};
+  if(r.prev_expired) toast("Oldingi urinish vaqti tugagan edi, yangisi boshlandi");
+  if(!qs.length||r.left_sec<=0) return finishTimed(r.left_sec<=0);
+  drawQ();
+}
+async function finishTimed(auto){
+  const r=state.run; if(!r) return;
+  clearInterval(state.qt); $("view").innerHTML=SPIN;
+  const {data:f,error}=await sb.rpc("finish_run",{p_run:r.runId});
+  if(error||!f){toast("Natijani saqlab boʻlmadi");state.run=null;go("tests",null,{grade:r.set.grade});return}
+  const {data:runs}=await sb.rpc("my_runs",{p_set:String(r.set.id)});
+  state.run=null;
+  const v=$("view"), pc=f.total?Math.round(f.correct/f.total*100):0, done=(runs||[]).filter(x=>x.finished);
+  v.innerHTML=head("Natija")+`<div class="card" style="text-align:center">
+    ${auto?`<p style="color:var(--danger);font-weight:800;margin:0 0 6px">⏱ Vaqt tugadi</p>`:""}
+    <p class="muted" style="margin:0">${f.attempt_no}-urinish</p>
+    <div class="big">${f.correct} / ${f.total}</div>
+    <p class="muted" style="margin-top:6px">${pc}% toʻgʻri · ${mmss(f.secs)} daqiqa</p></div>
+    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="toList" type="button">Testlarga</button></div>`
+    +(done.length>1?`<h3 style="margin-top:24px">Urinishlar</h3><div class="list">`+done.map(x=>`<div class="li ${x.attempt_no===f.attempt_no?"me":""}"><div class="n">${x.attempt_no}</div>
+      <div class="grow"><b>${x.attempt_no}-urinish</b><small>${mmss(x.secs)} daqiqa</small></div><div class="p">${x.correct} / ${x.total}</div></div>`).join("")+`</div>`:"")
+    +(r.wrong.length?`<h3 style="margin-top:24px">Xatolar</h3>`+r.wrong.map(w=>`<div class="qcard"><b>${esc(w.q)}</b>
+      <p style="margin-top:8px;color:var(--danger)">Sizning javobingiz: ${esc(w.mine)}</p>
+      <p style="color:var(--accent)">Toʻgʻrisi: ${esc(w.right)}</p></div>`).join(""):"");
+  $("bk").onclick=$("toList").onclick=()=>go("tests",null,{grade:r.set.grade});
+  $("again").onclick=()=>startTimed(r.set);
 }
 
 /* ================= DARSLAR ================= */
@@ -1419,12 +1499,13 @@ async function renderTeacher(){
   const v=$("view");
   v.innerHTML=`<div class="top"><button class="back" id="bk" type="button" aria-label="Orqaga">‹</button>
     <h1 style="flex:1;margin-left:6px">Ustoz paneli</h1></div>
-    <div class="tabs2"><button id="tS" class="on" type="button">Oʻquvchilar</button><button id="tN" type="button">Yangilik</button><button id="tU" type="button">Yuklash</button></div>
+    <div class="tabs2"><button id="tS" class="on" type="button">Oʻquvchilar</button><button id="tN" type="button">Yangilik</button><button id="tU" type="button">Yuklash</button><button id="tR" type="button">Natijalar</button></div>
     <div id="tBody"></div>`;
   $("bk").onclick=()=>{clearInterval(state.timer);go("home")};
-  const tab=(id)=>["tS","tN","tU"].forEach(x=>$(x).classList.toggle("on",x===id));
+  const tab=(id)=>["tS","tN","tU","tR"].forEach(x=>$(x).classList.toggle("on",x===id));
   $("tS").onclick=()=>{tab("tS");drawStudents(true)};
   $("tN").onclick=()=>{tab("tN");clearInterval(state.timer);drawNewsForm()};
+  $("tR").onclick=()=>{tab("tR");clearInterval(state.timer);drawResults()};
   $("tU").onclick=()=>{tab("tU");clearInterval(state.timer);
     $("tBody").innerHTML=`<div class="qa" style="margin-top:16px">
       <button class="btn" type="button" data-up="book">+ Kitob yoki qoʻllanma yuklash</button>
@@ -1471,6 +1552,20 @@ async function drawStudents(showLoader){
     const {error}=await sb.from("students").update({grp:sel.value||null}).eq("id",id);
     toast(error?"Saqlanmadi":"Guruh saqlandi");
   });
+}
+
+async function drawResults(){
+  const body=$("tBody"); if(!body) return;
+  body.innerHTML='<p class="muted" style="padding:30px 0;text-align:center"><span class="spin"></span></p>';
+  const {data,error}=await sb.rpc("teacher_results");
+  if(error){body.innerHTML=`<div class="empty">Natijalarni yuklab boʻlmadi.<br><small>${esc(error.message)}</small><br><small>Yangi SQL kodni Supabase’da ishga tushirdingizmi?</small></div>`;return}
+  const rows=data||[];
+  body.innerHTML=`<div class="card"><div class="row"><div><b style="font-size:26px">${rows.length}</b><span class="muted"> ta urinish</span></div>
+    <button class="btn ghost small" id="rf2" type="button">Yangilash</button></div></div>`
+    +(rows.length?`<div class="list" style="margin-top:14px">`+rows.map(x=>`<div class="li"><div class="grow"><b>${esc(x.full_name)}</b>
+      <small>${esc(x.title||"Test")} · ${x.attempt_no}-urinish · ${dateUz(x.started_at)}${x.finished?` · ${mmss(x.secs)} daq`:" · davom etmoqda"}</small></div>
+      <div class="p">${x.finished?`${x.correct} / ${x.total}`:"…"}</div></div>`).join("")+`</div>`:`<div class="empty">Hozircha urinish yoʻq.</div>`);
+  $("rf2").onclick=drawResults;
 }
 
 function drawNewsForm(){
