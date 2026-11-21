@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nur biologiya">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json?v=2">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
+<link rel="icon" type="image/png" href="icon-192.png?v=2">
 <title>Nur biologiya</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
@@ -240,6 +240,10 @@ function normPhone(raw){
 }
 const fakeEmail = (d)=>`p${d}@nurbio.uz`;
 const prettyPhone = (d)=>`+${d.slice(0,3)} ${d.slice(3,5)} ${d.slice(5,8)} ${d.slice(8,10)} ${d.slice(10)}`;
+function todayTash(){ return new Date(Date.now()+5*3600e3).toISOString().slice(0,10) }
+function addMonth(iso){ const d=new Date((iso||todayTash())+"T00:00:00Z"), day=d.getUTCDate(); d.setUTCMonth(d.getUTCMonth()+1); if(d.getUTCDate()!==day) d.setUTCDate(0); return d.toISOString().slice(0,10) }
+function kunUz(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-").map(Number); return `${d}-${["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentyabr","oktyabr","noyabr","dekabr"][m-1]} ${y}` }
+function accessState(m){ if(!m) return "ok"; if(m.blocked) return "blocked"; if(m.paid_until && m.paid_until<todayTash()) return "expired"; return "ok" }
 function dateUz(s){const d=new Date(s);return d.toLocaleDateString("uz-UZ",{day:"numeric",month:"long"})}
 
 /* ---------- ilovani oʻrnatish ---------- */
@@ -322,11 +326,23 @@ async function boot(){
     await logout(); return;
   }
   $("auth").classList.add("hidden"); $("app").classList.remove("hidden");
+  if(!state.isTeacher && showLocked()) return;
   buildNav(); startUsage();
   if(await maybePlacement()) return;
   const hm=/^#darslar(\d+)/.exec(location.hash);
   if(hm){ try{history.replaceState(null,"",location.pathname+location.search)}catch(e){} await go("lessons",null,{grade:+hm[1]}); }
   else await go("home");
+}
+
+function showLocked(){
+  const st=accessState(state.me); if(st==="ok") return false;
+  clearInterval(usageTimer); $("nav").classList.add("hidden");
+  const t=st==="blocked"
+    ?`<h1>Kirish yopilgan 🚫</h1><div class="card"><p>Ustoz sizni ilovadan chiqardi.</p><p class="muted" style="margin-top:8px">Xato boʻlsa, Nur ustozga murojaat qiling.</p></div>`
+    :`<h1>Obuna muddati tugagan ⏳</h1><div class="card"><p>Toʻlov muddati <b>${kunUz(state.me.paid_until)}</b> kuni tugagan.</p><p class="muted" style="margin-top:8px">Davom etish uchun toʻlovni qiling va Nur ustozga xabar bering. Ustoz tasdiqlagach, hammasi joyida turadi: ballaringiz ham, sayyorangiz ham.</p></div>`;
+  $("view").innerHTML=t+`<button class="btn" id="lkRe" type="button" style="margin-top:16px">Qayta tekshirish</button>`+logoutBlock();
+  $("lkRe").onclick=()=>location.reload(); bindLogout();
+  return true;
 }
 
 async function loadCommon(){
@@ -361,10 +377,12 @@ function buildNav(){
 async function go(tab,sub=null,ctx={}){
   $("nav").classList.remove("hidden");
   state.tab=tab; state.sub=sub; state.ctx=ctx||{};
+  state.learning=(tab==="library"&&state.ctx.view==="read");
   $("nav").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===tab && sub!=="teacher"));
   $("view").innerHTML=SPIN;
   window.scrollTo(0,0);
   try{ await loadCommon(); }catch(e){}
+  if(!state.isTeacher && showLocked()) return;
   render();
 }
 
@@ -529,11 +547,18 @@ function pArt(i,path){
     `${T("🌙",250,60,26)}${T("✨",52,70,18)}`);
 }
 
-let usageTimer=null, popShown=false;
+let usageTimer=null, popShown=false, lastAct=Date.now();
+["pointerdown","touchstart","keydown","scroll","wheel"].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+/* vaqt faqat oʻqish paytida sanaladi: test, mashq yoki kitob oʻqish ochiq va oxirgi 2 daqiqada ekranga tegilgan boʻlsa */
+function isLearning(){
+  if(document.visibilityState!=="visible") return false;
+  if(Date.now()-lastAct>120000) return false;
+  return !!state.learning;
+}
 function startUsage(){
   clearInterval(usageTimer); if(!state.me) return;
   usageTimer=setInterval(async()=>{
-    if(document.visibilityState!=="visible") return;
+    if(!isLearning()) return;
     const {data,error}=await sb.rpc("add_usage",{p_seconds:30});
     if(error||typeof data!=="number") return;
     const prev=state.todaySec||0; state.todaySec=data;
@@ -585,7 +610,7 @@ function habitBanner(P){
   if(P.miss>=3) return `<div class="fb bad"><b>Oshqozonim ogʻrib qoldi 😤</b><div class="muted" style="margin-top:4px">Bir necha kun kirmading, sayyora boshidan boshlandi. Bugun 5 daqiqa kir, yana boshlaymiz.</div></div>`;
   if(P.miss===2) return `<div class="fb bad"><b>Ikki kun kirmading 😬</b><div class="muted" style="margin-top:4px">Sayyorang bir bosqich pastga tushdi. Bugun ham kirmasang, hammasi boshidan boshlanadi!</div></div>`;
   if(P.miss===1) return `<div class="fb"><b>Sayyorang muzlab turibdi 🧊</b><div class="muted" style="margin-top:4px">Kecha kirmading. Bugun ${left} daqiqa oʻtirsang, hech narsa yoʻqolmaydi. Kirmasang, ertaga bir bosqich tushadi.</div></div>`;
-  return `<div class="fb"><b>Bugun yana ${left} daqiqa kerak ⏱</b><div class="muted" style="margin-top:4px">Kuniga kamida 5 daqiqa ilovada boʻlsang, sayyorang oʻsadi.</div></div>`;
+  return `<div class="fb"><b>Bugun yana ${left} daqiqa kerak ⏱</b><div class="muted" style="margin-top:4px">Kuniga kamida 5 daqiqa dars, test yoki mashq bilan shugʻullansang, sayyorang oʻsadi. Shunchaki ochib qoʻyish hisoblanmaydi 😏</div></div>`;
 }
 async function renderPlanet(){
   const v=$("view");
@@ -921,7 +946,7 @@ async function renderTests(){
   if(!state.isTeacher) qy=qy.neq("kind","placement");
   const {data,error}=await qy;
   let h=`<h1>Testlar</h1>`+gradeChips(grade);
-  if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button">+ Test yuklash (PDF)</button>`;
+  if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button">+ Test yuklash (PDF)</button><div id="plWarn"></div>`;
   h+=`<div id="sets"></div>`;
   h+=`<h2 style="margin-top:28px">Natijalar doskasi</h2>`;
   if(!state.board.length) h+=`<div class="empty">Hozircha natija yoʻq.</div>`;
@@ -934,6 +959,9 @@ async function renderTests(){
   v.innerHTML=h;
   v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("tests",null,{grade:+b.dataset.g}));
   const ns=$("newSet"); if(ns) ns.onclick=()=>go("tests",null,{view:"new",grade});
+  if(state.isTeacher) sb.from("question_sets").select("id",{count:"exact",head:true}).eq("kind","placement").then(({count})=>{
+    const w=$("plWarn"); if(w&&!count) w.innerHTML=`<div class="fb bad" style="margin-top:12px"><b>🧭 Daraja aniqlash testi hali yuklanmagan</b><div class="muted" style="margin-top:4px">Shuning uchun oʻquvchilarga chiqmayapti. «Test yuklash» ni bosing, 15 ta savolni joylang va «Bu daraja aniqlash testi» belgisini qoʻying.</div></div>`;
+  });
   const box=$("sets");
   if(error){msgErr(box,error);return}
   const sets=data||[];
@@ -1053,7 +1081,7 @@ async function startTest(set){
     const o=q.opts.map((t,i)=>({t,i}));
     return {id:q.id,q:q.q,view:o.some(x=>STICKY.test(x.t))?o:shuffle(o)};
   });
-  state.run={set,qs,i:0,ok:0,wrong:[]};
+  state.run={set,qs,i:0,ok:0,wrong:[]}; state.learning=true;
   drawQ();
 }
 function drawQ(){
@@ -1143,7 +1171,7 @@ async function beginTimed(set){
     const o=q.opts.map((t,i)=>({t,i}));
     return {id:q.id,q:q.q,view:o.some(x=>STICKY.test(x.t))?o:shuffle(o)};
   });
-  state.run={set,qs,i:0,ok:0,wrong:[],timed:true,runId:r.run_id,attempt:r.attempt_no,total:data.length,done:answered.size,end:Date.now()+r.left_sec*1000};
+  state.run={set,qs,i:0,ok:0,wrong:[],timed:true,runId:r.run_id,attempt:r.attempt_no,total:data.length,done:answered.size,end:Date.now()+r.left_sec*1000}; state.learning=true;
   if(r.prev_expired) toast("Oldingi urinish vaqti tugagan edi, yangisi boshlandi");
   if(!qs.length||r.left_sec<=0) return finishTimed(r.left_sec<=0);
   drawQ();
@@ -1430,7 +1458,7 @@ function startRun(list,back){
     }else steps.push({type:"qismi",e});
   });
   if(!steps.length){toast("Bu mashqlar hali toʻliq toʻldirilmagan.");return}
-  state.ex={steps:shuffle(steps).slice(0,15),i:0,ok:0,back};
+  state.ex={steps:shuffle(steps).slice(0,15),i:0,ok:0,back}; state.learning=true;
   state.ctx={view:"run"};
   drawStep();
 }
@@ -1518,6 +1546,23 @@ async function renderTeacher(){
   state.timer=setInterval(()=>{ if(state.sub==="teacher" && $("tS")?.classList.contains("on")) drawStudents(false) },10000);
 }
 
+function payRow(s){
+  const a=accessState(s);
+  const st=a==="blocked"?`<span class="badge" style="background:#7f1d1d;color:#fff">🚫 Chiqarilgan</span>`
+    :a==="expired"?`<span class="badge" style="background:#78350f;color:#fff">⏳ Toʻlov tugagan: ${kunUz(s.paid_until)}</span>`
+    :s.paid_until?`<span class="badge" style="background:#14532d;color:#fff">✅ ${kunUz(s.paid_until)} gacha</span>`
+    :`<span class="badge">Muddatsiz (bepul)</span>`;
+  return `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+    <div class="row" style="gap:8px;flex-wrap:wrap">${st}
+      <label class="muted" style="font-size:13px;display:flex;align-items:center;gap:6px">Muddat:
+        <input type="date" data-paydate value="${s.paid_until||""}" style="min-height:0;padding:6px 8px;width:auto"></label></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn small" data-pay="month" type="button">💳 +1 oy toʻladi</button>
+      ${s.paid_until?`<button class="btn ghost small" data-pay="free" type="button">Muddatsiz</button>`:""}
+      ${s.blocked?`<button class="btn ghost small" data-pay="unblock" type="button">✅ Qaytarish</button>`
+        :`<button class="btn danger small" data-pay="block" type="button">🚫 Chiqarish</button>`}
+    </div></div>`;
+}
 async function drawStudents(showLoader){
   const body=$("tBody"); if(!body) return;
   if(showLoader) body.innerHTML='<p class="muted" style="padding:30px 0;text-align:center"><span class="spin"></span></p>';
@@ -1525,12 +1570,13 @@ async function drawStudents(showLoader){
   if(error){body.innerHTML=`<div class="empty">Roʻyxatni yuklab boʻlmadi.</div>`;return}
   state.students=data||[];
   let us={}; try{ const u=await sb.rpc("usage_summary"); (u.data||[]).forEach(r=>us[r.student_id]=r) }catch(e){}
-  const g={A:0,B:0,C:0,none:0};
-  state.students.forEach(s=>{g[s.grp||"none"]++});
+  const g={A:0,B:0,C:0,none:0}; let nBl=0,nEx=0;
+  state.students.forEach(s=>{g[s.grp||"none"]++; const a=accessState(s); if(a==="blocked")nBl++; if(a==="expired")nEx++;});
   let h=`<div class="card"><div class="row"><div><b style="font-size:26px">${state.students.length}</b>
     <span class="muted"> ta oʻquvchi</span></div>
     <button class="btn ghost small" id="rf" type="button">Yangilash</button></div>
-    <p class="muted" style="margin-top:8px;font-size:14px">A: ${g.A} · B: ${g.B} · C: ${g.C} · guruhsiz: ${g.none}</p></div>`;
+    <p class="muted" style="margin-top:8px;font-size:14px">A: ${g.A} · B: ${g.B} · C: ${g.C} · guruhsiz: ${g.none}</p>
+    ${nBl||nEx?`<p class="muted" style="margin-top:4px;font-size:14px">🚫 chiqarilgan: ${nBl} · ⏳ toʻlovi tugagan: ${nEx}</p>`:""}</div>`;
   if(!state.students.length) h+=`<div class="empty">Hali oʻquvchi roʻyxatdan oʻtmagan.</div>`;
   h+=`<div style="margin-top:14px">`+state.students.map(s=>`
     <div class="student" data-id="${s.id}">
@@ -1542,11 +1588,29 @@ async function drawStudents(showLoader){
       </select>
       <span class="muted" style="font-size:13px;margin-left:8px">${dateUz(s.created_at)}</span>
       <span class="usg">⏱ Bugun ${Math.round(((us[s.id]||{}).today_sec||0)/60)} daq · jami ${Math.round(((us[s.id]||{}).total_sec||0)/60)} daq · 🔥 ${(us[s.id]||{}).grow||0} kun</span>
+      ${payRow(s)}
     </div>`).join("")+`</div>`;
   // tanlash oynasi ochiq boʻlsa, avtoyangilash xalaqit bermasin
-  if(!showLoader && document.activeElement && document.activeElement.tagName==="SELECT") return;
+  if(!showLoader && document.activeElement && (document.activeElement.tagName==="SELECT"||document.activeElement.tagName==="INPUT")) return;
   body.innerHTML=h;
   $("rf").onclick=()=>drawStudents(true);
+  body.querySelectorAll("[data-pay]").forEach(b=>b.onclick=async()=>{
+    const id=b.closest("[data-id]").dataset.id, s=state.students.find(x=>x.id===id), a=b.dataset.pay;
+    let upd=null, msg="";
+    if(a==="month"){ const base=s.paid_until&&s.paid_until>=todayTash()?s.paid_until:todayTash(); upd={paid_until:addMonth(base),blocked:false}; msg="Toʻlov +1 oy saqlandi"; }
+    if(a==="free"){ if(!confirm(`${s.full_name}: muddatsiz (bepul) qilasizmi?`))return; upd={paid_until:null}; msg="Muddatsiz qilindi"; }
+    if(a==="block"){ if(!confirm(`${s.full_name} ni ilovadan chiqarasizmi? Ballari saqlanadi, lekin kira olmaydi.`))return; upd={blocked:true}; msg="Oʻquvchi chiqarildi 🚫"; }
+    if(a==="unblock"){ upd={blocked:false}; msg="Oʻquvchi qaytarildi ✅"; }
+    if(!upd) return;
+    b.disabled=true;
+    const {error}=await sb.from("students").update(upd).eq("id",id);
+    toast(error?"Saqlanmadi: "+error.message:msg); drawStudents(false);
+  });
+  body.querySelectorAll("[data-paydate]").forEach(inp=>inp.onchange=async()=>{
+    const id=inp.closest("[data-id]").dataset.id;
+    const {error}=await sb.from("students").update({paid_until:inp.value||null}).eq("id",id);
+    toast(error?"Saqlanmadi":"Toʻlov muddati saqlandi"); drawStudents(false);
+  });
   body.querySelectorAll("[data-grp]").forEach(sel=>sel.onchange=async()=>{
     const id=sel.closest("[data-id]").dataset.id;
     const {error}=await sb.from("students").update({grp:sel.value||null}).eq("id",id);

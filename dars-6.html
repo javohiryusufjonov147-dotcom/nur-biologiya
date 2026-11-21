@@ -977,17 +977,33 @@ function renderLesson(){
   h += '<div id="chat" aria-live="polite"></div><div id="status"></div>';
   h += '<div id="endBox" style="display:none"><div style="height:18px"></div>'+
        '<button class="btn" id="goTest" data-act="real"></button>'+
-       '<button class="btn ghost" data-act="practice">Test mashqini bajarish</button>'+
+       '<button class="btn ghost" id="goPractice" data-act="practice">Test mashqini bajarish</button>'+
        '<button class="btn ghost" data-act="replay">Darsni boshidan koʻrish</button>'+
-       '<p class="note">Taymer faqat shu sahifa ochiq turganda sanaydi. Tugagach «Testga oʻtish» ochiladi. Testda 15 ta savol, 5 ta xato qilsangiz matnga qaytasiz.</p></div>';
+       '<p class="note">Taymer faqat shu sahifa ochiq turganda sanaydi. Testdan yiqilsangiz, taymer tugamaguncha test ham, mashq ham yopiq. Tugagach «Testga oʻtish» ochiladi. Testda 15 ta savol, 5 ta xato qilsangiz matnga qaytasiz.</p></div>';
   h += '<div class="chatpad" id="pad"></div><div id="reply" style="display:none"><div class="in" id="replyIn"></div></div>';
   if(S.allOpen){ h += '<button class="skip" id="skip" data-act="skip" style="bottom:auto;top:70px">⏩ Ustoz: hammasini ochish</button>'; }
   app.innerHTML = h;
   S.flow = buildFlow(); S.fi = 0;
   clearTimeout(S.flowTimer);
-  if(S.readAll){ revealAll(); } else { flowNext(); }
+  var seen = S.replay ? 0 : Math.min(load("nb_seen_"+L.id,0), S.flow.length); S.replay = false;
+  if(S.readAll || seen>=S.flow.length){ revealAll(); }
+  else if(seen>0){ revealUpTo(seen); flowNext(); }
+  else { flowNext(); }
   updateTimerUI();
 }
+function staticItem(it){
+  if(it.sec) return '<div class="sec">'+esc(it.sec)+'</div>';
+  if(it.board) return boardHtml(it.board,true).html;
+  if(it.ask) return nurMsg(it.ask.q)+aliMsg(it.ask.o[it.ask.a])+nurMsg(it.ask.ok,"fb");
+  return msgHtml(it);
+}
+function revealUpTo(n){            // oldin koʻrilgan qismini birdan chiqaramiz, qolgani davom etadi
+  var chat=document.getElementById("chat"), h='', i;
+  for(i=0;i<n;i++){ h+=staticItem(S.flow[i]); }
+  if(chat){ chat.insertAdjacentHTML("beforeend",h); }
+  S.fi=n;
+}
+function seenSave(n){ if(L && L.id && n>load("nb_seen_"+L.id,0)) save("nb_seen_"+L.id,n); }
 
 function toBottom(){ setTimeout(function(){ try{ window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"}); }catch(e){ window.scrollTo(0,document.body.scrollHeight); } },30); }
 function nearBottom(){ return (window.innerHeight+window.scrollY) >= document.body.scrollHeight-260; }
@@ -1003,6 +1019,7 @@ function setStatus(html){ var st=document.getElementById("status"); if(st) st.in
 
 function flowNext(){
   if(S.screen!=="lesson") return;
+  seenSave(S.fi);
   if(S.fi>=S.flow.length){ finishFlow(); return; }
   if(document.visibilityState!=="visible"){ S.flowTimer=setTimeout(flowNext,500); return; }
   var it=S.flow[S.fi];
@@ -1071,7 +1088,7 @@ function revealAll(){
   S.fi=S.flow.length; finishFlow();
 }
 function finishFlow(){
-  S.readAll=true;
+  S.readAll=true; seenSave(S.flow.length);
   var eb=document.getElementById("endBox"), sk=document.getElementById("skip");
   if(eb) eb.style.display="block"; if(sk) sk.style.display="none";
   var pd=document.getElementById("pad"); if(pd) pd.style.height="0";
@@ -1085,11 +1102,15 @@ function updateTimerUI(){
   if(!btn) return;
   if(S.left<=0){ btn.disabled = false; btn.textContent = "Testga oʻtish"; }
   else { btn.disabled = true; btn.textContent = "🔒 Testga oʻtish · "+fmt(S.left); }
+  var pb = document.getElementById("goPractice");
+  if(pb){ var lk = coolOn() && S.left>0; pb.disabled = lk; pb.textContent = lk ? "🔒 Test mashqi · "+fmt(S.left) : "Test mashqini bajarish"; }
 }
+function coolOn(){ return !!(L && L.id && load("nb_cool_"+L.id,false)); }
+function coolSet(v){ if(L && L.id) save("nb_cool_"+L.id, v); }
 setInterval(function(){
   if(S.screen!=="lesson" || S.left<=0) return;
   if(document.visibilityState!=="visible") return;   // sahifada boʻlmasa sanamaydi
-  S.left--; updateTimerUI();
+  S.left--; if(S.left<=0) coolSet(false); updateTimerUI();
 }, 1000);
 
 /* ====== Test ====== */
@@ -1251,13 +1272,13 @@ app.addEventListener("click", function(e){
   if(act==="home") return nbExit();
   if(act==="open"){ return openLesson(+el.getAttribute("data-i")); }
   if(act==="lesson") return show("lesson");
-  if(act==="replay"){ S.readAll = false; return show("lesson"); }
+  if(act==="replay"){ S.readAll = false; S.replay = true; return show("lesson"); }
   if(act==="skip") return revealAll();
   if(act==="say"){ return onSay(+el.getAttribute("data-k")); }
-  if(act==="relearn"){ S.left = TIMER_SECONDS; S.readAll = true; return show("lesson"); }
+  if(act==="relearn"){ S.left = TIMER_SECONDS; S.readAll = true; coolSet(true); return show("lesson"); }
   if(act==="real"){ if(S.left>0) return; if(NBP.closed) return nbClosedMsg(); return startTest("real"); }
-  if(act==="real_again"){ if(NBP.closed) return nbClosedMsg(); return startTest("real"); }
-  if(act==="practice") return startTest("practice");
+  if(act==="real_again"){ if(S.left>0) return show("lesson"); if(NBP.closed) return nbClosedMsg(); return startTest("real"); }
+  if(act==="practice"){ if(coolOn() && S.left>0) return show("lesson"); return startTest("practice"); }
   if(act==="next"){
     if(S.mode==="real" && S.errors>=MAX_ERRORS) return show("fail");
     if(S.qi>=S.qs.length-1) return show("result");
@@ -1295,7 +1316,14 @@ var NB = window.NB_DATA;
 var NBG = NB.grade;
 var NBP = { teacher:false, closed:false, tries:0, passedAny:false, ready:false };
 var NBSB = supabase.createClient(NB.url, NB.key);
-setInterval(function(){ if(document.visibilityState!=="visible"||!NBP.ready) return; NBSB.rpc("add_usage",{p_seconds:30}); },30000);
+var nbAct = Date.now();
+["pointerdown","touchstart","keydown","scroll","wheel"].forEach(function(ev){ addEventListener(ev,function(){ nbAct = Date.now(); },{passive:true,capture:true}); });
+setInterval(function(){
+  if(document.visibilityState!=="visible"||!NBP.ready) return;
+  if(S.screen!=="lesson" && S.screen!=="test") return;      // faqat dars yoki test paytida
+  if(Date.now()-nbAct>120000) return;                         // 2 daqiqa tegilmasa sanamaydi
+  NBSB.rpc("add_usage",{p_seconds:30});
+},30000);
 function nbExit(){ location.href = "index.html#darslar" + NBG; }
 function nbMsg(title, text, btn){
   app.innerHTML = '<div class="center" style="padding-top:40px"><h1>'+title+'</h1><p class="soft">'+text+'</p></div><div style="height:14px"></div>'+
@@ -1326,7 +1354,7 @@ async function nbSubmit(failed){
   NBP.tries++;
   if(!failed) NBP.passedAny = true;
   if(!NBP.passedAny && NBP.tries>=10) NBP.closed = true;
-  if(failed) return nbFailScreen(pts);
+  if(failed){ coolSet(true); S.left = TIMER_SECONDS; return nbFailScreen(pts); }
   nbPassScreen(pts, first, triesBefore);
 }
 function nbFailScreen(){
@@ -1391,6 +1419,11 @@ app.addEventListener("click", function(e){
     var ses = ss.data && ss.data.session;
     if(!ses){ location.replace("index.html"); return; }
     var t = await NBSB.rpc("is_teacher"); NBP.teacher = (t.data===true);
+    if(!NBP.teacher){
+      var me = await NBSB.from("students").select("blocked,paid_until").eq("id",ses.user.id).maybeSingle();
+      var md = me.data, td = new Date(Date.now()+5*3600e3).toISOString().slice(0,10);
+      if(md && (md.blocked || (md.paid_until && md.paid_until < td))){ location.replace("index.html"); return; }
+    }
     IDX = NB.index;
     var id = decodeURIComponent(location.hash.replace(/^#/,"")), i, found = -1;
     for(i=0;i<IDX.lessons.length;i++){ if(IDX.lessons[i].id===id){ found=i; break; } }
