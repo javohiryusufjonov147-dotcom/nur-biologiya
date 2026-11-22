@@ -986,11 +986,50 @@ function renderLesson(){
   S.flow = buildFlow(); S.fi = 0;
   clearTimeout(S.flowTimer);
   var seen = S.replay ? 0 : Math.min(load("nb_seen_"+L.id,0), S.flow.length); S.replay = false;
-  if(S.readAll || seen>=S.flow.length){ revealAll(); }
+  if(NBP.teacher){ S.left=0; revealAll(); nbTeacherNav(); }
+  else if(S.readAll || seen>=S.flow.length){ revealAll(); }
   else if(seen>0){ revealUpTo(seen); flowNext(); }
   else { flowNext(); }
   updateTimerUI();
 }
+/* ====== Ustoz rejimi: dars toʻliq ochiq, boʻlimlarga oʻtish, savollar banki ====== */
+function nbTeacherNav(){
+  var chat=document.getElementById("chat"); if(!chat) return;
+  var secs=chat.querySelectorAll(".sec"), k;
+  var h='<style>.sec{scroll-margin-top:84px}.tchip{display:inline-block;margin:0 6px 8px 0;padding:9px 12px;border-radius:12px;border:1px solid var(--line,#2B4A43);background:var(--bg2,#1d2b28);color:inherit;font:inherit;font-size:15px;text-align:left;cursor:pointer}.tfab{position:fixed;right:14px;bottom:96px;z-index:30;width:52px;height:52px;border-radius:50%;border:0;background:var(--accent,#3ddc97);color:#0b1412;font-size:24px;box-shadow:0 6px 18px rgba(0,0,0,.4);cursor:pointer}</style>';
+  h+='<div class="card" id="tnav" style="margin-top:12px"><b>👨‍🏫 Ustoz rejimi</b><p class="soft" style="margin:4px 0 10px">Dars toʻliq ochiq, taymer yoʻq. Kerakli boʻlimga oʻting:</p><div>';
+  for(k=0;k<secs.length;k++){ secs[k].id="tsec"+k; h+='<button class="tchip" type="button" data-tsec="'+k+'">'+esc(secs[k].textContent)+'</button>'; }
+  h+='</div><div style="height:6px"></div><button class="btn ghost" type="button" data-tq="1">📋 Savollar banki · '+L.questions.length+' ta (javoblari bilan)</button>';
+  h+='<p class="soft" style="margin:8px 0 0;font-size:14px">Doskani bossangiz, chizma qaytadan chiziladi.</p></div>';
+  h+='<button class="tfab" type="button" data-ttop="1" aria-label="Boʻlimlar">📑</button>';
+  chat.insertAdjacentHTML("beforebegin",h);
+}
+function nbTeacherQs(){
+  clearTimeout(S.flowTimer); hideReply(); S.screen="tq";
+  var tn={choice:"Tanlash",fill:"Boʻsh joyni toʻldirish",image:"Rasmli",pick2:"2 tasini tanlash",order:"Ketma-ketlik",match:"Juftlash"};
+  var h='<div class="top sticky"><button class="back" type="button" data-tback="1" aria-label="Darsga">←</button><div class="ttl">'+L.no+'-dars · savollar banki ('+L.questions.length+')</div></div>', i, k, d;
+  for(i=0;i<L.questions.length;i++){
+    d=L.questions[i];
+    h+='<div class="card" style="margin-top:12px"><div class="soft">'+(i+1)+'-savol · '+(tn[d.t]||d.t)+'</div>';
+    if(d.t==="image" && d.e) h+='<div class="emoji" role="img" aria-label="Rasm">'+d.e+'</div>';
+    h+='<div class="q" style="margin:6px 0 10px">'+esc(d.q||"")+'</div>';
+    if(d.o){ for(k=0;k<d.o.length;k++){ var ok = (d.t==="pick2") ? (d.a.indexOf(k)>-1) : (k===d.a); h+='<div class="opt'+(ok?' right':'')+'" style="cursor:default">'+(ok?'✅ ':'')+esc(d.o[k])+'</div>'; } }
+    if(d.items) h+='<div class="soft">Toʻgʻri tartib: '+d.items.map(function(t,j){ return (j+1)+". "+esc(t); }).join(" → ")+'</div>';
+    if(d.pairs) h+=d.pairs.map(function(p){ return '<div style="margin:4px 0">'+esc(p[0])+' — <b>'+esc(p[1])+'</b></div>'; }).join("");
+    if(d.w) h+='<p class="soft" style="margin:10px 0 0">💡 '+esc(d.w)+'</p>';
+    h+='</div>';
+  }
+  h+='<div style="height:12px"></div><button class="btn" type="button" data-tback="1">Darsga qaytish</button>';
+  app.innerHTML=h; window.scrollTo(0,0);
+}
+app.addEventListener("click", function(e){
+  if(!NBP.teacher) return;
+  var t = e.target.closest ? e.target.closest("[data-tsec],[data-tq],[data-ttop],[data-tback]") : null; if(!t) return;
+  if(t.hasAttribute("data-tsec")){ var s=document.getElementById("tsec"+t.getAttribute("data-tsec")); if(s){ try{ s.scrollIntoView({behavior:"smooth",block:"start"}); }catch(x){ s.scrollIntoView(); } } return; }
+  if(t.hasAttribute("data-ttop")){ var n=document.getElementById("tnav"); if(n){ try{ n.scrollIntoView({behavior:"smooth",block:"start"}); }catch(x){ n.scrollIntoView(); } } return; }
+  if(t.hasAttribute("data-tq")) return nbTeacherQs();
+  if(t.hasAttribute("data-tback")) return show("lesson");
+});
 function staticItem(it){
   if(it.sec) return '<div class="sec">'+esc(it.sec)+'</div>';
   if(it.board) return boardHtml(it.board,true).html;
