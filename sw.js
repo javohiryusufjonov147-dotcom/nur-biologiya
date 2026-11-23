@@ -1,4 +1,4 @@
-const CACHE = "nur-bio-v3";
+const CACHE = "nur-bio-v4";
 const SHELL = ["./", "./index.html", "./manifest.json", "./nur-logo-192.png", "./nur-logo-512.png", "./apple-touch-icon.png"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
