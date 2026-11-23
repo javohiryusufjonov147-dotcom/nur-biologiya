@@ -838,6 +838,39 @@ function upcomingRow(){
     return `<button class="hcard" type="button" data-hl="${l.id}" data-ho="${open?1:0}" style="${open?"":"opacity:.55"}"><span class="e">${l.sticker}</span><b>${l.no}-dars · ${esc(l.title)}</b><small>${l.g}-sinf${open?"":" · 🔒"}</small></button>`}).join("")+`</div>`;
 }
 
+/* Bosh sahifadagi salom: ustozga alohida, oʻquvchiga holatiga qarab hazilli matn (har kirishda bitta tanlanadi) */
+const GREET={
+  normal:[
+    ["Qooonday eee, {n}!","Keldingizmi eee. Darsni boshlaymizmi?"],
+    ["{n}, sizni buyuk ishlar kutyapti 🚀","Boshlaymizmi?"],
+    ["Voy-voy, {n} keldilar 😎","Marhamat, dars sizni kutib oʻtiribdi."]
+  ],
+  absent:[
+    ["Kelardiz uhlab uhlab...","Darsni boshlang endi, {n}!"],
+    ["Oshqozonim ogʻrib qoldi, {n} 😤","Qayerda yurdingiz shuncha?"],
+    ["{n}, sayyorangiz sizni sogʻinib yigʻlab oʻtiribdi 😢","Kiring, tezroq darsga!"]
+  ],
+  low:[
+    ["Yurovirmang dars qilmay!","Sen tengilar MARSga ketishyapti, ketishyapti 🚀"],
+    ["{n}, bugun ham besh daqiqa bilan qutulmoqchimisiz? 😏","Koʻp oʻqib keldim deysiz, lekin oʻqimagani bilinadi."],
+    ["{n}, telefon qoʻlda, dars esa unutilgan 📱","Bir mavzu ochsak, dunyo qulab tushmaydi."]
+  ]
+};
+function greeting(first){
+  if(state.isTeacher) return {head:"Salom, ustoz 👋",sub:"",big:true};
+  if(!state.me) return {head:"Salom, ustoz 👋",sub:"",big:true};
+  if(!state.greetKey){
+    const P=state.planet||{}, miss=P.miss||0, grow=P.grow||0, today=P.today||0;
+    let t="normal";
+    if(miss>=2) t="absent";
+    else if(miss===1||(grow>0&&grow<3&&today<300)) t="low";
+    const arr=GREET[t];
+    state.greetKey=t+":"+Math.floor(Math.random()*arr.length);
+  }
+  const [t,i]=state.greetKey.split(":"), m=GREET[t][+i];
+  return {head:m[0].replace("{n}",first),sub:m[1].replace("{n}",first),big:false};
+}
+
 function renderHome(){
   const me=state.me;
   const first=me?esc(me.full_name.split(" ")[0]):"Ustoz";
@@ -845,8 +878,9 @@ function renderHome(){
   let h=`<div class="hdr"><img class="hlogo" alt="NUR Biology" src="data:image/webp;base64,${LOGO}">
     <div class="hact">${me?`<button class="ringbtn" id="ringBtn" type="button" aria-label="Mening sayyoram">${ringHtml()}</button>`:""}
     <button class="bell" id="bellBtn" type="button" aria-label="Yangiliklar${un?`, ${un} ta yangi`:""}"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0112 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 004 0"/></svg>${un?`<i>${un}</i>`:""}</button></div></div>`;
-  h+=`<div class="top"><div><p class="muted">Salom,</p><h1>${first}</h1></div>
-    ${me?`<span class="badge g">${me.grade}-sinf</span>`:`<span class="badge g">Ustoz</span>`}</div>`;
+  const gr=greeting(first);
+  h+=`<div class="top"><div style="min-width:0"><h1 style="font-size:${gr.big?28:22}px;line-height:1.2">${gr.head}</h1>${gr.sub?`<p class="muted" style="margin-top:4px">${gr.sub}</p>`:""}</div>
+    ${me&&!state.isTeacher?`<span class="badge g">${me.grade}-sinf</span>`:`<span class="badge g">Ustoz</span>`}</div>`;
   if(me){
     h+=`<div class="stats">
       <div class="card stat pts"><b>${num(me.points)}</b><span>toʻplangan ball</span></div>
