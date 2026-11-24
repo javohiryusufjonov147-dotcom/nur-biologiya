@@ -1411,9 +1411,10 @@ function nbFailScreen(){
 }
 function nbPassScreen(pts, first, triesBefore){
   var nxt = IDX.lessons[L.idx+1] && IDX.lessons[L.idx+1].file;
-  var ballTxt = first
-    ? '<p><b>⭐ +'+nbNum(pts)+' ball</b> reytingga qoʻshildi'+(triesBefore>0?' <span class="soft">('+(triesBefore+1)+'-urinish)</span>':'')+'</p>'
-    : '<p class="soft">Bu dars avval oʻtilgan, qayta ishlaganda ball qoʻshilmaydi.</p>';
+  var ballTxt = pts>0
+    ? '<p><b>⭐ +'+nbNum(pts)+' ball</b> reytingga qoʻshildi <span class="soft">('+(triesBefore+1)+'-urinish, har toʻgʻri javob '+nbNum(nbFactor(triesBefore))+' ball)</span></p>'+
+      (nbFactor(triesBefore+1)>0?'<p class="soft">Keyingi urinishda har toʻgʻri javob '+nbNum(nbFactor(triesBefore+1))+' ball boʻladi.</p>':'')
+    : '<p class="soft">Bu urinishda ball qoʻshilmadi ('+(triesBefore+1)+'-urinish).</p>';
   app.innerHTML = '<div class="center" style="padding-top:26px"><div class="bigx">'+(S.errors===0?"🏆":"🎉")+'</div>'+
     '<h1>Dars oʻtildi!</h1><div class="score">'+S.correct+' / '+S.qs.length+'</div>'+
     '<p><b>Nur ustoz:</b> '+(S.errors===0?"Bitta ham xato yoʻq! Mana bu boshqa gap! 🔥":S.errors<=2?"Yaxshi! Kalla ishlayapti, davom et 💪":"Oʻtding, lekin tayyorgarlik yanada kuchli boʻlsin 😏")+'</p>'+
