@@ -726,6 +726,7 @@ function pArt(i,path){
     `${T("🌙",250,60,26)}${T("✨",52,70,18)}`);
 }
 
+const DAY_NORM=900; /* kunlik norma: 15 daqiqa */
 let usageTimer=null, popShown=false, lastAct=Date.now();
 ["pointerdown","touchstart","keydown","scroll","wheel"].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
 /* vaqt faqat oʻqish paytida sanaladi: test, mashq yoki kitob oʻqish ochiq va oxirgi 2 daqiqada ekranga tegilgan boʻlsa */
@@ -742,13 +743,13 @@ function startUsage(){
     if(error||typeof data!=="number") return;
     const prev=state.todaySec||0; state.todaySec=data;
     let crossed=false;
-    if(state.planet){ state.planet.today=data; if(prev<300&&data>=300){ crossed=true; state.planet.grow+=1; state.planet.miss=0; } }
+    if(state.planet){ state.planet.today=data; if(prev<DAY_NORM&&data>=DAY_NORM){ crossed=true; state.planet.grow+=1; state.planet.miss=0; } }
     updateRing();
     if(crossed){ toast("Bugungi reja bajarildi! Sayyorang oʻsdi 🌱"); if(state.sub==="planet") renderPlanet(); }
   },30000);
 }
 function ringHtml(){
-  const P=state.planet||{grow:0,path:null}, sec=state.todaySec||0, pc=Math.min(1,sec/300), R=24, C=2*Math.PI*R;
+  const P=state.planet||{grow:0,path:null}, sec=state.todaySec||0, pc=Math.min(1,sec/DAY_NORM), R=24, C=2*Math.PI*R;
   const st=stageOf(P.grow,P.path);
   return `<svg viewBox="0 0 58 58" width="58" height="58" aria-hidden="true"><circle cx="29" cy="29" r="${R}" fill="var(--surface)" stroke="var(--line)" stroke-width="5"/>
     <circle cx="29" cy="29" r="${R}" fill="none" stroke="${pc>=1?"var(--gold)":"var(--accent)"}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-pc)).toFixed(1)}" transform="rotate(-90 29 29)"/>
@@ -784,12 +785,12 @@ function showNewsPopup(){
 }
 
 function habitBanner(P){
-  const left=Math.max(0,Math.ceil((300-(P.today||0))/60));
-  if((P.today||0)>=300) return `<div class="fb ok"><b>Bugungi reja bajarildi ✅</b><div class="muted" style="margin-top:4px">Sayyorang oʻsdi. Ertaga yana kel!</div></div>`;
-  if(P.miss>=3) return `<div class="fb bad"><b>Oshqozonim ogʻrib qoldi 😤</b><div class="muted" style="margin-top:4px">Bir necha kun kirmading, sayyora boshidan boshlandi. Bugun 5 daqiqa kir, yana boshlaymiz.</div></div>`;
+  const left=Math.max(0,Math.ceil((DAY_NORM-(P.today||0))/60));
+  if((P.today||0)>=DAY_NORM) return `<div class="fb ok"><b>Bugungi reja bajarildi ✅</b><div class="muted" style="margin-top:4px">Sayyorang oʻsdi. Ertaga yana kel!</div></div>`;
+  if(P.miss>=3) return `<div class="fb bad"><b>Oshqozonim ogʻrib qoldi 😤</b><div class="muted" style="margin-top:4px">Bir necha kun kirmading, sayyora boshidan boshlandi. Bugun 15 daqiqa shugʻullan, yana boshlaymiz.</div></div>`;
   if(P.miss===2) return `<div class="fb bad"><b>Ikki kun kirmading 😬</b><div class="muted" style="margin-top:4px">Sayyorang bir bosqich pastga tushdi. Bugun ham kirmasang, hammasi boshidan boshlanadi!</div></div>`;
   if(P.miss===1) return `<div class="fb"><b>Sayyorang muzlab turibdi 🧊</b><div class="muted" style="margin-top:4px">Kecha kirmading. Bugun ${left} daqiqa oʻtirsang, hech narsa yoʻqolmaydi. Kirmasang, ertaga bir bosqich tushadi.</div></div>`;
-  return `<div class="fb"><b>Bugun yana ${left} daqiqa kerak ⏱</b><div class="muted" style="margin-top:4px">Kuniga kamida 5 daqiqa dars, test yoki mashq bilan shugʻullansang, sayyorang oʻsadi. Shunchaki ochib qoʻyish hisoblanmaydi 😏</div></div>`;
+  return `<div class="fb"><b>Bugun yana ${left} daqiqa kerak ⏱</b><div class="muted" style="margin-top:4px">Kuniga kamida 15 daqiqa dars, test yoki mashq bilan shugʻullansang, sayyorang oʻsadi. Shunchaki ochib qoʻyish hisoblanmaydi 😏</div></div>`;
 }
 async function renderPlanet(){
   const v=$("view");
@@ -811,7 +812,7 @@ async function renderPlanet(){
         <p style="margin-top:6px">Keyingi bosqich: <b>${nx.name}</b>. Yana <b>${rem}</b> kun qoldi, davom etamiz 💪</p></div>`;
     }else h+=`<div class="card"><p>Eng yuqori bosqichdasan, barakalla! Sayyorangni saqlab qol 🌍</p></div>`;
     h+=habitBanner(P);
-    h+=`<div class="card" style="margin-top:12px"><div class="row"><span class="muted">Bugun</span><b>${Math.min(5,Math.floor((P.today||0)/60))} / 5 daqiqa</b></div><div class="bar" style="margin:8px 0 0"><i style="width:${Math.min(100,Math.round((P.today||0)/3))}%"></i></div></div>`;
+    h+=`<div class="card" style="margin-top:12px"><div class="row"><span class="muted">Bugun</span><b>${Math.min(15,Math.floor((P.today||0)/60))} / 15 daqiqa</b></div><div class="bar" style="margin:8px 0 0"><i style="width:${Math.min(100,Math.round((P.today||0)/9))}%"></i></div></div>`;
     if(need) h+=`<div class="card" style="border-color:var(--gold)"><h3>Yoʻlingni tanla</h3><p class="muted" style="margin:6px 0 12px">Evolyutsiya ikkiga ajraladi. Bir marta tanlanadi.</p>
       <div class="two"><button class="btn" type="button" data-path="plant">🌿 Oʻsimlik</button><button class="btn" type="button" data-path="animal">🐾 Hayvon</button></div></div>`;
     h+=`<h3 style="margin-top:22px">Bosqichlar</h3><div class="ladder">`+L.map((s,k)=>`<div class="st ${k<idx?"done":k===idx?"cur":""}"><i>${s.e}</i>${s.start} k.</div>`).join("")+`</div>`;
@@ -863,7 +864,7 @@ function greeting(first){
     const P=state.planet||{}, miss=P.miss||0, grow=P.grow||0, today=P.today||0;
     let t="normal";
     if(miss>=2) t="absent";
-    else if(miss===1||(grow>0&&grow<3&&today<300)) t="low";
+    else if(miss===1||(grow>0&&grow<3&&today<DAY_NORM)) t="low";
     const arr=GREET[t];
     state.greetKey=t+":"+Math.floor(Math.random()*arr.length);
   }
@@ -884,7 +885,7 @@ function renderHome(){
   if(me){
     h+=`<div class="stats">
       <div class="card stat pts"><b>${num(me.points)}</b><span>toʻplangan ball</span></div>
-      <div class="card stat"><b>${rankOf()}</b><span>${state.board.length} oʻquvchi ichida</span></div>
+      ${state.isTeacher?`<div class="card stat"><b>${state.board.length}</b><span>reytingdagi faol oʻquvchi</span></div>`:`<div class="card stat"><b>${rankOf()}</b><span>${state.board.length} oʻquvchi ichida</span></div>`}
     </div>
     ${subCard()}${contCard()}${upcomingRow()}`;
   }
@@ -1156,32 +1157,47 @@ document.addEventListener("keydown",(e)=>{ if(!$("pg")||!rd.doc)return; if(e.key
 async function renderTests(){
   const c=state.ctx, v=$("view");
   if(c.view==="new") return renderSetForm();
-  const grade=c.grade||(state.me?state.me.grade:6);
+  /* 1-qadam: sinf papkalari (6–11) */
+  if(!c.grade){
+    let qa=sb.from("question_sets").select("grade,kind");
+    if(!state.isTeacher) qa=qa.neq("kind","placement");
+    const {data:all}=await qa;
+    const cnt=g=>(all||[]).filter(x=>x.grade===g).length;
+    let h=`<h1>RING testlar</h1><p class="muted" style="margin-top:4px">Sinovlar: aralash mavzulardan, darsdagi testlardan qiyinroq. Sinfni tanlang.</p>`;
+    if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button" style="margin-top:12px">+ RING test yuklash (PDF)</button><div id="plWarn"></div>`;
+    h+=`<div class="list">`+GR.map(g=>`<button class="tile" data-g="${g}" type="button"><span class="ic">${g}</span><span class="grow"><b>${g}-sinf</b><small>${cnt(g)} ta test</small></span></button>`).join("")+`</div>`;
+    h+=`<h2 style="margin-top:28px">Natijalar doskasi</h2>`;
+    if(!state.board.length) h+=`<div class="empty">Hozircha natija yoʻq.</div>`;
+    else{
+      h+=`<div class="list">`+state.board.slice(0,50).map((r,i)=>{
+        const mine=state.me&&r.full_name===state.me.full_name&&Number(r.points)===Number(state.me.points);
+        return `<div class="li ${mine?"me":""}"><div class="n">${i+1}</div>
+          <div class="grow"><b>${esc(r.full_name)}</b></div><div class="p">${num(r.points)}</div></div>`}).join("")+`</div>`;
+    }
+    v.innerHTML=h;
+    v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("tests",null,{grade:+b.dataset.g}));
+    const ns=$("newSet"); if(ns) ns.onclick=()=>go("tests",null,{view:"new",grade:state.me?state.me.grade:6});
+    if(state.isTeacher) sb.from("question_sets").select("id",{count:"exact",head:true}).eq("kind","placement").then(({count})=>{
+      const w=$("plWarn"); if(w&&!count) w.innerHTML=`<div class="fb bad" style="margin-top:12px"><b>🧭 Daraja aniqlash testi hali yuklanmagan</b><div class="muted" style="margin-top:4px">Shuning uchun oʻquvchilarga chiqmayapti. «RING test yuklash» ni bosing, 15 ta savolni joylang va «Bu daraja aniqlash testi» belgisini qoʻying.</div></div>`;
+    });
+    return;
+  }
+  /* 2-qadam: tanlangan sinf ichidagi RING testlar */
+  const grade=c.grade;
   let qy=sb.from("question_sets").select("*").eq("grade",grade).order("created_at",{ascending:false});
   if(!state.isTeacher) qy=qy.neq("kind","placement");
   const {data,error}=await qy;
-  let h=`<h1>Testlar</h1>`+gradeChips(grade);
-  if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button">+ Test yuklash (PDF)</button><div id="plWarn"></div>`;
+  let h=head(`${grade}-sinf · RING testlar`);
+  if(state.isTeacher) h+=`<button class="btn" id="newSet" type="button">+ ${grade}-sinfga RING test yuklash</button>`;
   h+=`<div id="sets"></div>`;
-  h+=`<h2 style="margin-top:28px">Natijalar doskasi</h2>`;
-  if(!state.board.length) h+=`<div class="empty">Hozircha natija yoʻq.</div>`;
-  else{
-    h+=`<div class="list">`+state.board.slice(0,50).map((r,i)=>{
-      const mine=state.me&&r.full_name===state.me.full_name&&Number(r.points)===Number(state.me.points);
-      return `<div class="li ${mine?"me":""}"><div class="n">${i+1}</div>
-        <div class="grow"><b>${esc(r.full_name)}</b></div><div class="p">${num(r.points)}</div></div>`}).join("")+`</div>`;
-  }
   v.innerHTML=h;
-  v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>go("tests",null,{grade:+b.dataset.g}));
+  $("bk").onclick=()=>go("tests");
   const ns=$("newSet"); if(ns) ns.onclick=()=>go("tests",null,{view:"new",grade});
-  if(state.isTeacher) sb.from("question_sets").select("id",{count:"exact",head:true}).eq("kind","placement").then(({count})=>{
-    const w=$("plWarn"); if(w&&!count) w.innerHTML=`<div class="fb bad" style="margin-top:12px"><b>🧭 Daraja aniqlash testi hali yuklanmagan</b><div class="muted" style="margin-top:4px">Shuning uchun oʻquvchilarga chiqmayapti. «Test yuklash» ni bosing, 15 ta savolni joylang va «Bu daraja aniqlash testi» belgisini qoʻying.</div></div>`;
-  });
   const box=$("sets");
   if(error){msgErr(box,error);return}
   const sets=data||[];
-  if(!sets.length){box.innerHTML=`<div class="empty">Bu sinfda hali test yoʻq.</div>`;return}
-  box.innerHTML=sets.map(s=>`<div class="tile" style="cursor:default"><span class="ic">✅</span><span class="grow"><b>${esc(s.title)}${s.kind==="placement"?" 🧭":""}</b>
+  if(!sets.length){box.innerHTML=`<div class="empty">Bu sinfda hali RING test yoʻq.</div>`;return}
+  box.innerHTML=sets.map(s=>`<div class="tile" style="cursor:default"><span class="ic">${s.kind==="placement"?"🧭":"💍"}</span><span class="grow"><b>${esc(s.title)}</b>
     <small>${s.qcount} ta savol${s.per_try>0?`, har safar ${s.per_try} tasi`:""}${s.time_limit>0?` · ⏱ ${s.time_limit} daqiqa`:""}</small></span>
     <button class="btn small" data-s="${s.id}" type="button">Boshlash</button>
     ${state.isTeacher?`<button class="btn danger small" data-x="${s.id}" type="button">Oʻchirish</button>`:""}</div>`).join("");
@@ -1197,8 +1213,8 @@ async function renderTests(){
 /* ---------- ustoz: PDF dan test yaratish ---------- */
 function renderSetForm(){
   const v=$("view"), g0=state.ctx.grade||6;
-  v.innerHTML=head("Test yuklash")+`<div class="card">
-    <label style="margin-top:0" for="stt">Test nomi</label><input id="stt" placeholder="Masalan: 1–6-mavzular">
+  v.innerHTML=head("RING test yuklash")+`<div class="card">
+    <label style="margin-top:0" for="stt">Test nomi</label><input id="stt" placeholder="Masalan: 1–6-mavzular (aralash)">
     <label for="stg">Sinf</label><select id="stg">${gradeOpts(g0)}</select>
     <label for="stp">Har safar nechta savol chiqsin? (0 = hammasi)</label><input id="stp" type="number" inputmode="numeric" value="0" min="0">
     <label for="stm">Vaqt (daqiqa, 0 = cheksiz)</label><input id="stm" type="number" inputmode="numeric" value="0" min="0">
@@ -1336,7 +1352,7 @@ function drawResult(){ if(state.run&&state.run.timed) return finishTimed(false);
   const r=state.run, v=$("view"), n=r.qs.length, pc=Math.round(r.ok/n*100);
   v.innerHTML=head("Natija")+`<div class="card" style="text-align:center"><div class="big">${r.ok} / ${n}</div>
     <p class="muted" style="margin-top:6px">${pc}% toʻgʻri</p></div>
-    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="toList" type="button">Testlarga</button></div>`
+    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="toList" type="button">RING testlarga</button></div>`
     +(r.wrong.length?`<h3 style="margin-top:24px">Xatolar</h3>`+r.wrong.map(w=>`<div class="qcard"><b>${esc(w.q)}</b>
       <p style="margin-top:8px;color:var(--danger)">Sizning javobingiz: ${esc(w.mine)}</p>
       <p style="color:var(--accent)">Toʻgʻrisi: ${esc(w.right)}</p></div>`).join(""):"");
@@ -1404,7 +1420,7 @@ async function finishTimed(auto){
     <p class="muted" style="margin:0">${f.attempt_no}-urinish</p>
     <div class="big">${f.correct} / ${f.total}</div>
     <p class="muted" style="margin-top:6px">${pc}% toʻgʻri · ${mmss(f.secs)} daqiqa</p></div>
-    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="toList" type="button">Testlarga</button></div>`
+    <div class="two"><button class="btn" id="again" type="button">Qayta ishlash</button><button class="btn ghost" id="toList" type="button">RING testlarga</button></div>`
     +(done.length>1?`<h3 style="margin-top:24px">Urinishlar</h3><div class="list">`+done.map(x=>`<div class="li ${x.attempt_no===f.attempt_no?"me":""}"><div class="n">${x.attempt_no}</div>
       <div class="grow"><b>${x.attempt_no}-urinish</b><small>${mmss(x.secs)} daqiqa</small></div><div class="p">${x.correct} / ${x.total}</div></div>`).join("")+`</div>`:"")
     +(r.wrong.length?`<h3 style="margin-top:24px">Xatolar</h3>`+r.wrong.map(w=>`<div class="qcard"><b>${esc(w.q)}</b>
