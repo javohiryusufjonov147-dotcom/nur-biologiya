@@ -2935,7 +2935,7 @@ setInterval(function(){
   if(document.visibilityState!=="visible"||!NBP.ready) return;
   if(S.screen!=="lesson" && S.screen!=="test") return;      // faqat dars yoki test paytida
   if(Date.now()-nbAct>120000) return;                         // 2 daqiqa tegilmasa sanamaydi
-  NBSB.rpc("add_usage",{p_seconds:30});
+  NBSB.rpc("add_usage",{p_seconds:30}).then(function(){},function(){});
 },30000);
 function nbExit(){ location.href = "index.html#darslar" + NBG; }
 function nbMsg(title, text, btn){
